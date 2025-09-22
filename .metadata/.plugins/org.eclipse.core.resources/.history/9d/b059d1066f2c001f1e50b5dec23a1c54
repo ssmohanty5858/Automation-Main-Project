@@ -1,0 +1,183 @@
+package POM;
+
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+//import org.openqa.selenium.support.ui.Select;
+import org.testng.Assert;
+
+public class OpportunityPage
+{
+	@FindBy(xpath = "//li[@tooltip='Opportunity']")
+	private WebElement opportunitytab;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[7]")
+	private WebElement searchbar;
+
+	@FindBy(xpath = "//span[@tooltip='Sort']")
+	private WebElement sort;
+
+	@FindBy(xpath = "//a[.='Date created: New to Old']")
+	private WebElement newtoold;
+
+	@FindBy(xpath = "//a[.='Date created: Old to New']")
+	private WebElement oldtonew;
+
+	@FindBy(xpath = "//a[.='Opportunity value: Low to High']")
+	private WebElement lowtohigh;
+
+	@FindBy(xpath = "//a[.='Opportunity value: High to Low']")
+	private WebElement hightolow;
+
+	@FindBy(xpath = "//span[@tooltip='Grid view']")
+	private WebElement gridview;
+
+	@FindBy(xpath = "//span[@tooltip='List view']")
+	private WebElement listview;
+
+	@FindBy(xpath = "//div[@class='action-icons']")
+	private WebElement refresh;
+
+	@FindBy(xpath = "(//li[@role='presentation'])[2]")
+	private WebElement won;
+
+	@FindBy(xpath = "(//li[@role='presentation'])[3]")
+	private WebElement lost;
+
+	@FindBy(xpath = "(//li[@role='presentation'])[4]")
+	private WebElement all;
+
+	@FindBy(xpath = "//span[.='Mine']")
+	private WebElement mine;
+
+	@FindBy(xpath = "//span[.='Members']")
+	private WebElement members;
+
+	@FindBy(xpath = "//span[@tooltip='Filter']")
+	private WebElement filter;
+
+	@FindBy(xpath = "//select[@class='form-control ng-pristine ng-valid ng-touched']") // Need to use select class
+	private WebElement selectdd;
+
+	@FindBy(xpath = "//a[@class='nav-link dropdown-toggle logged-in-user c-pointer']")
+	private WebElement ea;
+
+	@FindBy(id = "theme-dark")
+	private WebElement dark;
+
+	/*
+	 * @FindBy(xpath="//app-eva-dropdown[@formcontrolname='account']") private
+	 * WebElement accountdd;
+	 * 
+	 * @FindBy(xpath="//app-eva-dropdown[@formcontrolname='contact']") private
+	 * WebElement contactdd;
+	 * 
+	 * @FindBy(xpath="//app-eva-dropdown[@formcontrolname='managedby']") private
+	 * WebElement managedbydd;
+	 * 
+	 * @FindBy(xpath="//app-eva-dropdown[@formcontrolname='stageId']") private
+	 * WebElement opportunitystage;
+	 * 
+	 * @FindBy(xpath="//app-eva-multiselect[@formcontrolname='sources']") private
+	 * WebElement opportunitysources;
+	 * 
+	 * @FindBy(xpath=
+	 * "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[1]") private
+	 * WebElement opportunitysize;
+	 * 
+	 * @FindBy(xpath=
+	 * "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[2]") private
+	 * WebElement productttype;
+	 * 
+	 * @FindBy(xpath=
+	 * "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[3]") private
+	 * WebElement projecttype;
+	 * 
+	 * @FindBy(xpath=
+	 * "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[4]") private
+	 * WebElement clientwealth;
+	 * 
+	 * @FindBy(xpath=
+	 * "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[5]") private
+	 * WebElement clienttype;
+	 */
+
+	@FindBy(xpath = "//input[@value='Apply']")
+	private WebElement apply;
+
+	@FindBy(xpath = "//li[@class='pagination-next page-item']")
+	private WebElement nextpage;
+
+	@FindBy(xpath = "//div[@role='alertdialog']")
+	private WebElement alertmessage;
+	
+	@FindBy(id = "theme-light")
+	private WebElement light;
+
+
+	// @FindBy(xpath="//li[@class='pagination-prev page-item']")
+	// private WebElement previouspage;
+
+	public OpportunityPage(WebDriver driver) {
+		PageFactory.initElements(driver, this);
+	}
+
+	public void opppage() throws InterruptedException 
+	{
+		opportunitytab.click();
+		Thread.sleep(2000);
+		searchbar.sendKeys("SSM");
+		Thread.sleep(2000);
+		searchbar.sendKeys(Keys.ENTER);
+		Thread.sleep(2000);
+		refresh.click();
+		Thread.sleep(2000);
+		sort.click();
+		Thread.sleep(2000);
+		newtoold.click();
+		// sort.click();
+		// oldtonew.click();
+		// sort.click();
+		refresh.click();
+		// lowtohigh.click();
+		// sort.click();
+		// hightolow.click();
+		Thread.sleep(3000);
+		refresh.click();
+		Thread.sleep(2000);
+		gridview.click();
+		Thread.sleep(3000);
+		listview.click();
+		won.click();
+		Thread.sleep(2000);
+		lost.click();
+		Thread.sleep(2000);
+		all.click();
+		Thread.sleep(2000);
+		mine.click();
+		Thread.sleep(2000);
+		members.click();
+		// filter.click();
+		Thread.sleep(2000);
+		// selectdd.click();
+		/*
+		 * selectdd.sendKeys(Keys.ARROW_DOWN); selectdd.sendKeys(Keys.ARROW_DOWN);
+		 * selectdd.sendKeys(Keys.ARROW_DOWN); selectdd.sendKeys(Keys.ENTER);
+		 */
+		nextpage.click();
+		Thread.sleep(3000);
+		
+
+	}
+
+	public void alertconfirmation() 
+	{
+		String actualmsg = alertmessage.getText();
+		String expectedmsg = "Light theme set.";
+		Assert.assertEquals(actualmsg, expectedmsg);
+		System.out.println(actualmsg);
+
+	}
+}

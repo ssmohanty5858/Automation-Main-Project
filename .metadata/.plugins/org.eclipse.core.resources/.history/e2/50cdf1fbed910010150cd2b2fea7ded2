@@ -1,0 +1,124 @@
+package util;
+
+import org.testng.*;
+import org.testng.xml.XmlSuite;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
+import java.util.*;
+
+public class CustomHtmlReporter implements IReporter {
+
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outDir) {
+        StringBuilder html = new StringBuilder(4096);
+        html.append("<!doctype html><html><head><meta charset='utf-8'>")
+            .append("<title>Execution Report</title>")
+            .append("<style>")
+            .append("body{font:14px/1.4 system-ui,Segoe UI,Arial,sans-serif;margin:16px;color:#222}")
+            .append(".grid{display:grid;grid-template-columns:1fr auto auto auto;gap:8px 16px;align-items:center}")
+            .append(".card{border:1px solid #ddd;border-radius:10px;padding:12px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.05)}")
+            .append(".badge{border-radius:12px;padding:2px 8px;font-weight:600;display:inline-block}")
+            .append(".pass{background:#e7f7ed;color:#137333}")
+            .append(".fail{background:#fde7e9;color:#b00020}")
+            .append(".skip{background:#fff4e5;color:#a66300}")
+            .append(".hdr{font-size:18px;font-weight:700;margin:4px 0 10px}")
+            .append(".log{border-top:1px dashed #ddd;margin-top:10px;padding-top:8px}")
+            .append(".log-row{font-family:Consolas,monospace;padding:2px 0}")
+            .append(".log-row .lv{font-weight:700}")
+            .append(".lvl-pass{color:#137333}")
+            .append(".lvl-info{color:#34495e}")
+            .append(".lvl-debug{color:#7f8c8d}")
+            .append(".lvl-warn{color:#a66300}")
+            .append(".lvl-error{color:#b00020}")
+            .append(".stack{white-space:pre-wrap;color:#b00020;background:#fff6f7;border:1px solid #f7c7cd;padding:8px;border-radius:6px}")
+            .append(".muted{color:#666;font-size:12px}")
+            .append("</style></head><body>");
+
+        html.append("<h1>Execution Report</h1>");
+
+        for (ISuite suite : suites) {
+            html.append("<div class='card'>")
+                .append("<div class='hdr'>Suite: ").append(suite.getName()).append("</div>");
+
+            Map<String, ISuiteResult> results = suite.getResults();
+            for (ISuiteResult r : results.values()) {
+                ITestContext ctx = r.getTestContext();
+
+                int passed = ctx.getPassedTests().size();
+                int failed = ctx.getFailedTests().size();
+                int skipped = ctx.getSkippedTests().size();
+                long timeMs = ctx.getEndDate().getTime() - ctx.getStartDate().getTime();
+                String dur = new DecimalFormat("#,###").format(timeMs) + " ms";
+
+                html.append("<div class='grid'>")
+                    .append("<div><b>Test:</b> ").append(ctx.getName()).append("</div>")
+                    .append("<div><span class='badge pass'>Passed: ").append(passed).append("</span></div>")
+                    .append("<div><span class='badge fail'>Failed: ").append(failed).append("</span></div>")
+                    .append("<div><span class='badge skip'>Skipped: ").append(skipped).append("</span></div>")
+                    .append("<div class='muted'>Duration: ").append(dur).append("</div>")
+                    .append("</div>");
+
+                // Per-method details:
+                appendMethodSection(html, "Passed methods", ctx.getPassedTests().getAllResults());
+                appendMethodSection(html, "Failed methods", ctx.getFailedTests().getAllResults());
+                appendMethodSection(html, "Skipped methods", ctx.getSkippedTests().getAllResults());
+            }
+            html.append("</div>");
+        }
+
+        html.append("</body></html>");
+
+        // write to test-output/custom-report.html
+        File out = new File(outDir, "custom-report.html");
+        try (Writer w = new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8)) {
+            w.write(html.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("[CustomHtmlReporter] wrote: " + out.getAbsolutePath());
+    }
+
+    private static void appendMethodSection(StringBuilder html, String title, Set<ITestResult> results) {
+        if (results.isEmpty()) return;
+        html.append("<div class='card'><div class='hdr'>").append(title).append("</div>");
+        for (ITestResult tr : sort(results)) {
+            String fqn = tr.getTestClass().getName() + "#" + tr.getMethod().getMethodName();
+            String badge = tr.getStatus() == ITestResult.SUCCESS ? "pass" :
+                           tr.getStatus() == ITestResult.FAILURE ? "fail" : "skip";
+            html.append("<div><span class='badge ").append(badge).append("'>")
+                .append(badge.toUpperCase()).append("</span> ")
+                .append(fqn).append("</div>");
+
+            // All Reporter.log lines (they include colored spans from Log.java)
+            List<String> lines = Reporter.getOutput(tr);
+            if (!lines.isEmpty()) {
+                html.append("<div class='log'>");
+                for (String s : lines) html.append(s);
+                html.append("</div>");
+            }
+
+            // Failure stack if any
+            if (tr.getThrowable() != null) {
+                html.append("<pre class='stack'>")
+                    .append(escape(tr.getThrowable()))
+                    .append("</pre>");
+            }
+        }
+        html.append("</div>");
+    }
+
+    private static List<ITestResult> sort(Collection<ITestResult> in) {
+        List<ITestResult> list = new ArrayList<>(in);
+        list.sort(Comparator.comparingLong(ITestResult::getStartMillis));
+        return list;
+    }
+
+    // turn a Throwable into a printable string safely
+    private static String escape(Throwable t) {
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        return sw.toString()
+                 .replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+}

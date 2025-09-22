@@ -1,0 +1,354 @@
+package util;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.testng.ISuite;
+import org.testng.ISuiteResult;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.Reporter;
+import org.testng.xml.XmlSuite;
+
+
+public class EmailableReportWithFailures {
+	private static final String OUT_FILE = "failure-emailable-report.html";
+    // ---------- small utils ----------
+
+    private static String esc(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static String stacktrace(Throwable t) {
+        if (t == null) return "";
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
+    }
+
+    /** Turn raw "path/to/file.html" (or existing anchors) into clickable links. */
+    private static String linkifyArtifacts(String line) {
+        if (line == null) return "";
+
+        // If the line already contains an anchor, keep it as-is.
+        if (line.contains("<a ") && line.contains("href=")) {
+            return line;
+        }
+
+        // Convert bare "artifacts/xxxxx.html" or ".../downloads/xxxxx.pdf" into anchors
+        Pattern p = Pattern.compile("((?:\\.?\\.?/)?(?:[\\w\\-./\\\\ ]+\\.(?:html|htm|pdf|har)))");
+        Matcher m = p.matcher(line);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String path = m.group(1);
+            String href = path.replace("\\", "/");
+            String label = Paths.get(path).getFileName().toString();
+            String anchor = "<a href='" + esc(href) + "' target='_blank' rel='noopener'>" + esc(label) + "</a>";
+            m.appendReplacement(sb, Matcher.quoteReplacement(anchor));
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+
+    // -------- readable step + artifact grouping ----------
+
+    /**
+     * We expect Reporter output lines to look like:
+     *   "[LOG] Click Login ..."
+     *   "artifacts/20250905_100..._click_Login.html"
+     * Or any line that already contains an <a href="...">...
+     *
+     * We group lines so that a link line following a [LOG] line is rendered
+     * directly "under" that step.
+     */
+    private static String buildGroupedLogsHtml(Collection<String> rawLines) {
+        if (rawLines == null || rawLines.isEmpty()) {
+            return "<div class='muted'>No logs.</div>";
+        }
+
+        // Normalize + linkify
+        List<String> lines = new ArrayList<>();
+        for (String l : rawLines) {
+            lines.add(linkifyArtifacts(l));
+        }
+
+        // Group lines into steps; attach a link line to previous [LOG] if possible
+        List<Step> steps = new ArrayList<>();
+        Step current = null;
+
+        Pattern stepStart = Pattern.compile("^\\s*\\[(?:LOG|STEP)]\\s*(.*)$"); // step marker
+        Pattern isLink   = Pattern.compile("href=['\"]([^'\"]+)['\"]");       // any anchor
+
+        for (String l : lines) {
+            Matcher ms = stepStart.matcher(l);
+            if (ms.find()) {
+                // New step
+                current = new Step(ms.group(1).trim(), l);
+                steps.add(current);
+                continue;
+            }
+            // If it contains an anchor, attach to latest step if available
+            if (current != null && isLink.matcher(l).find()) {
+                current.links.add(l);
+            } else {
+                // otherwise treat as a plain line of the current step, or standalone
+                if (current == null) {
+                    current = new Step(null, null);
+                    steps.add(current);
+                }
+                current.extra.add(l);
+            }
+        }
+
+        // Render
+        StringBuilder html = new StringBuilder();
+        html.append("<ul class='loglist'>");
+        for (Step s : steps) {
+            html.append("<li class='step'>");
+            if (s.title != null) {
+                html.append("<div class='step-title'>").append(esc(s.title)).append("</div>");
+            }
+            if (s.titleRaw != null && s.title == null) {
+                // no explicit title, keep original line
+                html.append("<div class='line'>").append(s.titleRaw).append("</div>");
+            }
+            for (String x : s.extra) {
+                html.append("<div class='line'>").append(x).append("</div>");
+            }
+            for (String a : s.links) {
+                // Show as a small "API calls" chip if it looks like a network artifact, otherwise just the anchor
+                if (a.contains(".html") || a.contains(".har")) {
+                    html.append("<div class='artifact'>")
+                        .append("<span class='chip'>API calls</span> ")
+                        .append(a)
+                        .append("</div>");
+                } else {
+                    html.append("<div class='artifact'>").append(a).append("</div>");
+                }
+            }
+            html.append("</li>");
+        }
+        html.append("</ul>");
+        return html.toString();
+    }
+
+    private static final class Step {
+        final String title;       // parsed step title (from [LOG])
+        final String titleRaw;    // original raw line if we didn't parse
+        final List<String> links = new ArrayList<>();
+        final List<String> extra = new ArrayList<>();
+        Step(String title, String titleRaw) {
+            this.title = title;
+            this.titleRaw = titleRaw;
+        }
+    }
+
+    // ---------- details helpers ----------
+
+    private static String detailsBox(String title, String innerHtml, String tone) {
+        // tone: "bad" | "ok" | "info" -> CSS color accents
+        String safeTitle = esc(title);
+        return new StringBuilder()
+            .append("<details class='box ").append(tone).append("'>")
+            .append("<summary>").append(safeTitle).append("</summary>")
+            .append("<div class='box-body'>").append(innerHtml == null ? "" : innerHtml).append("</div>")
+            .append("</details>")
+            .toString();
+    }
+
+
+    private static String preBlock(String text) {
+        return "<pre class='code'>" + esc(text) + "</pre>";
+    }
+
+    // ---------- IReporter ----------
+
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory) {
+        Path out = Paths.get(outputDirectory, "emailable-report.html");
+        try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+            w.write("<!doctype html><meta charset='utf-8'><title>Automation Test Execution Report</title>");
+            w.write("<style>");
+            w.write("""
+                    body{font-family:Segoe UI,system-ui,Arial,sans-serif;margin:18px;color:#0f172a;background:#fafafa}
+                    h1{margin:0 0 8px 0}
+                    table{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+                    th,td{border:1px solid #e6e6e6;padding:10px;vertical-align:top;font-size:14px}
+                    th{background:#f4f6f8;text-transform:uppercase;font-size:12px;letter-spacing:.04em;color:#334155}
+                    .kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:10px 0 18px}
+                    .card{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:12px;text-align:center}
+                    .num{font-weight:700;font-size:20px}
+                    .ok-b{background:#ecfdf5;border-color:#a7f3d0}
+                    .bad-b{background:#fef2f2;border-color:#fecaca}
+                    .muted{color:#64748b}
+                    details.box{border:1px solid #e5e7eb;border-radius:8px;margin:6px 0;background:#fff}
+                    details.box>summary{cursor:pointer;padding:8px 10px;font-weight:600}
+                    details.box .box-body{padding:10px;border-top:1px dashed #e5e7eb}
+                    details.box.ok>summary{background:#f0fdf4}
+                    details.box.bad>summary{background:#fef2f2}
+                    details.box.info>summary{background:#f8fafc}
+                    .code{white-space:pre-wrap;word-break:break-word;background:#0b1020;color:#e5e7eb;border-radius:8px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+                    .loglist{list-style:none;margin:0;padding:0}
+                    .loglist .step{padding:8px 8px;border-bottom:1px dashed #e9ecef}
+                    .loglist .step:last-child{border-bottom:none}
+                    .step-title{font-weight:600;margin-bottom:4px}
+                    .line{margin:2px 0}
+                    .artifact{margin:4px 0 0 0;font-size:13px}
+                    .chip{display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;padding:2px 6px;border-radius:999px;font-size:12px;margin-right:6px}
+                    .t-center{text-align:center}
+                    .status-ok{color:#0a7f4f;font-weight:700}
+                    .status-bad{color:#c0262d;font-weight:700}
+                    .grid-2{display:grid;grid-template-columns:1fr 1fr}
+                    """);
+            w.write("</style>");
+
+            // Title / header
+            w.write("<h1>Automation Test Execution Report</h1>");
+            w.write("<div class='muted'>Generated: "
+                    + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + "</div>");
+
+            for (ISuite s : suites) {
+                writeSuite(w, s);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("[emailable-report.html] wrote: " + out.toAbsolutePath());
+    }
+
+    private void writeSuite(BufferedWriter w, ISuite suite) throws IOException {
+        // Top KPIs (whole suite)
+        int total = 0, passed = 0, failed = 0, skipped = 0;
+        long dur = 0L;
+
+        for (ISuiteResult r : suite.getResults().values()) {
+            ITestContext ctx = r.getTestContext();
+//            total   += ctx.getPassedTests().size() + ctx.getFailedTests().size() + ctx.getSkippedTests().size();
+//            passed  += ctx.getPassedTests().size();
+            failed  += ctx.getFailedTests().size();
+//            skipped += ctx.getSkippedTests().size();
+            dur     += (ctx.getEndDate().getTime() - ctx.getStartDate().getTime());
+        }
+
+        w.write("<h2>Suite: " + esc(suite.getName()) + "</h2>");
+        w.write("<div class='kpi'>");
+//        w.write(card("Total", String.valueOf(total), ""));
+//        w.write(card("Passed", String.valueOf(passed), "ok-b"));
+        w.write(card("Failed", String.valueOf(failed), "bad-b"));
+//        w.write(card("Skipped", String.valueOf(skipped), ""));
+        w.write(card("Duration (ms)", String.valueOf(dur), ""));
+        //w.write(card("&nbsp;", "&nbsp;", ""));  // filler
+        w.write("</div>");
+
+        for (Map.Entry<String, ISuiteResult> entry : suite.getResults().entrySet()) {
+            ITestContext ctx = entry.getValue().getTestContext();
+            writeContextTable(w, ctx);
+        }
+    }
+
+    private static String card(String title, String number, String extraClass) {
+        return "<div class='card " + extraClass + "'><div class='muted'>" + title +
+               "</div><div class='num'>" + number + "</div></div>";
+    }
+
+    private void writeContextTable(BufferedWriter w, ITestContext ctx) throws IOException {
+        w.write("<h3>Test: " + esc(ctx.getName()) + "</h3>");
+
+        // Sub KPI row (context)
+        w.write("<div class='kpi'>");
+        w.write(card("Start", fmt(ctx.getStartDate()), ""));
+        w.write(card("End", fmt(ctx.getEndDate()), ""));
+        w.write(card("Total", String.valueOf(
+                ctx.getPassedTests().size() + ctx.getFailedTests().size() + ctx.getSkippedTests().size()), ""));
+        w.write(card("Passed", String.valueOf(ctx.getPassedTests().size()), "ok-b"));
+        w.write(card("Failed", String.valueOf(ctx.getFailedTests().size()), "bad-b"));
+        w.write(card("Skipped", String.valueOf(ctx.getSkippedTests().size()), ""));
+        w.write("</div>");
+
+        // Results table
+        w.write("<table>");
+        w.write("<tr><th>#</th><th>Class</th><th>Method</th><th>Status</th><th>Start</th><th>End</th>"
+                + "<th>Duration (ms)</th><th>Logs</th><th>Error</th></tr>");
+
+        int idx = 1;
+        List<ITestResult> all = new ArrayList<>();
+        all.addAll(ctx.getFailedTests().getAllResults());
+        all.addAll(ctx.getPassedTests().getAllResults());
+        all.addAll(ctx.getSkippedTests().getAllResults());
+
+        // Sort by start time
+        all.sort(Comparator.comparingLong(ITestResult::getStartMillis));
+
+        for (ITestResult r : all) {
+            String cls = r.getTestClass().getName();
+            String m   = r.getMethod().getMethodName();
+            String status = switch (r.getStatus()) {
+                case ITestResult.SUCCESS -> "<span class='status-ok'>Passed</span>";
+                case ITestResult.FAILURE -> "<span class='status-bad'>Failed</span>";
+                case ITestResult.SKIP    -> "Skipped";
+                default -> String.valueOf(r.getStatus());
+            };
+            String start = fmt(new Date(r.getStartMillis()));
+            String end   = fmt(new Date(r.getEndMillis()));
+            long dur     = r.getEndMillis() - r.getStartMillis();
+
+            // Gather Reporter output
+            @SuppressWarnings("unchecked")
+            List<String> reporterLines = (List<String>) Reporter.getOutput(r);
+
+            // Build logs HTML (collapsible)
+            String logsInner = buildGroupedLogsHtml(reporterLines);
+            String logsBox   = detailsBox("Logs(click to expand/collapse)", logsInner,
+                    r.getStatus() == ITestResult.SUCCESS ? "ok" : "info");
+
+            // Build error HTML (collapsible + linkify)
+            String errMsg = "";
+            if (r.getThrowable() != null) {
+                String st = stacktrace(r.getThrowable());
+                // Also try to linkify any artifact references inside stacktrace (rare but handy)
+                errMsg = linkifyArtifacts(st);
+            }
+            String errBody = errMsg.isEmpty() ? "<div class='muted'>No error.</div>" : preBlock(errMsg);
+            String errBox  = detailsBox("View error (click to expand/collapse)", errBody,
+                    r.getStatus() == ITestResult.FAILURE ? "bad" : "info");
+
+            w.write("<tr>");
+            w.write("<td class='t-center'>" + idx++ + "</td>");
+            w.write("<td>" + esc(cls) + "</td>");
+            w.write("<td>" + esc(m) + "</td>");
+            w.write("<td>" + status + "</td>");
+            w.write("<td>" + start + "</td>");
+            w.write("<td>" + end + "</td>");
+            w.write("<td class='t-center'>" + dur + "</td>");
+            w.write("<td>" + logsBox + "</td>");
+            w.write("<td>" + errBox + "</td>");
+            w.write("</tr>");
+        }
+
+        w.write("</table>");
+    }
+
+    private static String fmt(Date d) {
+        if (d == null) return "";
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(d);
+    }
+}
+
+
+

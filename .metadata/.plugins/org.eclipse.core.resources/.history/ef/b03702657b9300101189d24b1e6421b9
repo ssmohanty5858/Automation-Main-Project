@@ -1,0 +1,26 @@
+package Test;
+
+import org.testng.annotations.Test;
+import POM.LoginSapphire;
+import POM.AccountAddNew;
+
+public class NewAccountModule extends baseTest {
+
+  @Test
+  public void NewAccAdd() throws Exception {
+    // driver + creds + baseUrl come from baseTest/baseCred via MainRunner params
+    driver.get(baseUrl);
+
+    // login with the row-specific username/password from CSV
+    new LoginSapphire(driver).login(username, password);
+
+    // perform the test flow
+    AccountAddNew add = new AccountAddNew(driver);
+    util.Log.section("NewAccAdd", add::NewAccAdd);
+    add.NewAccAdd();
+    
+    // TODO: add a real assertion that proves success, e.g.:
+    // Assert.assertTrue(add.isAccountCreated(), "Account should be created");
+    // driver is closed by baseTest @AfterMethod
+  }
+}

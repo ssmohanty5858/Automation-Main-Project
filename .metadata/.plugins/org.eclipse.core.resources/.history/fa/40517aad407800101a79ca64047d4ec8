@@ -1,0 +1,44 @@
+package Test;
+
+import java.awt.AWTException;
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.testng.annotations.Test;
+import AutoConstant.constantInput;
+import POM.LoginSapphire;
+import POM.NewContactAdd;
+
+public class NewContactAddition implements constantInput
+{
+	@SuppressWarnings("deprecation")
+	@Test
+	public void NewContAdd() throws InterruptedException, AWTException
+	{
+	System.setProperty("webdriver.chrome.driver", "./drivers/chromedriver.exe");
+	ChromeOptions options = new ChromeOptions();
+	options.addArguments("--remote-allow-origins=*");
+	options.addArguments("--incognito");
+	options.addArguments("--headless=new", "--window-size=1920,1080");
+	WebDriver driver = new ChromeDriver(options);
+	driver.manage().window().maximize();
+	driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
+	driver.manage().timeouts().pageLoadTimeout(30, TimeUnit.SECONDS);
+	driver.manage().deleteAllCookies();
+	driver.get(URl);
+
+	LoginSapphire log = new LoginSapphire(driver);
+	log.LoginMethod();
+	NewContactAdd add = new NewContactAdd(driver);
+	add.AddNewContact();
+	Thread.sleep(2000);
+	add.frontimageupload();
+	Thread.sleep(2000);
+	add.contactPage();
+	Thread.sleep(2000);
+	add.backimageupload();
+	add.Transfercontact();
+	driver.close();
+}
+}

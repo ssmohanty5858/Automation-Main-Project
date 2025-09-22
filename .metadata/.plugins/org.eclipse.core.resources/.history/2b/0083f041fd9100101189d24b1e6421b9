@@ -1,0 +1,355 @@
+package Test; // <-- keep your original package
+
+import org.testng.IReporter;
+import org.testng.ISuite;
+import org.testng.ISuiteResult;
+import org.testng.ITestContext;
+import org.testng.ITestNGMethod;
+import org.testng.ITestResult;
+import org.testng.Reporter;
+import org.testng.xml.XmlSuite;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+/**
+ * EmailableReportWithLogs
+ *
+ * Custom emailable report that:
+ *  - Shows suite/test summary
+ *  - Renders a "Logs / Detailed differences" column with collapsible panel
+ *  - Renders an "Error" column as a collapsible, red-tinted panel
+ *  - Keeps anchor tags inside log messages clickable (artifact links)
+ *
+ * No public names were changed; class name is preserved so your testng.xml/listeners still work.
+ */
+public class EmailableReportWithLogs implements IReporter {
+
+    // ======== configuration ========
+    private static final String REPORT_NAME = "custom-report.html"; // test-output/<this file>
+    private static final String TITLE = "Automation Test Execution Report";
+    private static final SimpleDateFormat TS = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    // ======== IReporter ========
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory) {
+
+        // aggregate results
+        List<SuiteBlock> suiteBlocks = new ArrayList<>();
+        for (ISuite s : suites) suiteBlocks.add(buildSuiteBlock(s));
+
+        File out = new File(outputDirectory, REPORT_NAME);
+        out.getParentFile().mkdirs();
+
+        try (BufferedWriter w = new BufferedWriter(new FileWriter(out, StandardCharsets.UTF_8))) {
+            writeHtmlHead(w);
+            writeSummaryHeader(w, suiteBlocks);
+            for (SuiteBlock sb : suiteBlocks) {
+                writeSuite(w, sb);
+            }
+            w.write("</div></body></html>");
+        } catch (IOException e) {
+            // fall back to console if report cannot be written
+            e.printStackTrace();
+        }
+
+        System.out.println("[CustomHtmlReporter] wrote: " + out.getAbsolutePath());
+    }
+
+    // ======== data model ========
+
+    private static final class Row {
+        final ITestResult r;
+        final String className;
+        final String methodName;
+        final Status status;
+        Row(ITestResult r, Status status) {
+            this.r = r;
+            this.className = r.getTestClass() == null ? "" : r.getTestClass().getName();
+            this.methodName = r.getMethod() == null ? "" : r.getMethod().getMethodName();
+            this.status = status;
+        }
+        long start() { return r.getStartMillis(); }
+        long end()   { return r.getEndMillis(); }
+        long dur()   { return Math.max(0, end() - start()); }
+    }
+
+    private static final class TestBlock {
+        final String name;
+        final long start, end;
+        final List<Row> rows = new ArrayList<>();
+        TestBlock(String name, long start, long end) { this.name=name; this.start=start; this.end=end; }
+        long duration() { return Math.max(0, end - start); }
+        long passed() { return rows.stream().filter(r -> r.status==Status.PASSED).count(); }
+        long failed() { return rows.stream().filter(r -> r.status==Status.FAILED).count(); }
+        long skipped(){ return rows.stream().filter(r -> r.status==Status.SKIPPED).count(); }
+    }
+
+    private static final class SuiteBlock {
+        final String name;
+        final List<TestBlock> tests = new ArrayList<>();
+        SuiteBlock(String name){ this.name=name; }
+
+        long totalTests(){ return tests.stream().mapToLong(t -> t.rows.size()>0?1:0).sum(); } // count tests, not methods
+        long suitePassed(){ return tests.stream().mapToLong(TestBlock::passed).sum(); }
+        long suiteFailed(){ return tests.stream().mapToLong(TestBlock::failed).sum(); }
+        long suiteSkipped(){ return tests.stream().mapToLong(TestBlock::skipped).sum(); }
+        long suiteDuration(){ return tests.stream().mapToLong(TestBlock::duration).sum(); }
+    }
+
+    private enum Status { PASSED, FAILED, SKIPPED }
+
+    private static SuiteBlock buildSuiteBlock(ISuite suite) {
+        SuiteBlock sb = new SuiteBlock(suite.getName());
+        Map<String, ISuiteResult> results = suite.getResults();
+        // keep deterministic order by test start time
+        List<ISuiteResult> ordered = new ArrayList<>(results.values());
+        ordered.sort(Comparator.comparingLong(r -> r.getTestContext().getStartDate().getTime()));
+
+        for (ISuiteResult sr : ordered) {
+            ITestContext ctx = sr.getTestContext();
+            TestBlock tb = new TestBlock(ctx.getName(),
+                    tsOf(ctx.getStartDate()),
+                    tsOf(ctx.getEndDate()));
+
+            addAll(tb.rows, ctx.getPassedTests().getAllResults(), Status.PASSED);
+            addAll(tb.rows, ctx.getFailedTests().getAllResults(), Status.FAILED);
+            addAll(tb.rows, ctx.getSkippedTests().getAllResults(), Status.SKIPPED);
+
+            // order rows by start time inside the test
+            tb.rows.sort(Comparator.comparingLong(Row::start));
+            sb.tests.add(tb);
+        }
+        return sb;
+    }
+
+    private static void addAll(List<Row> list, Set<ITestResult> src, Status s) {
+        if (src == null || src.isEmpty()) return;
+        for (ITestResult r : src) list.add(new Row(r, s));
+    }
+
+    private static long tsOf(Date d){ return d==null?0:d.getTime(); }
+
+    // ======== HTML writers ========
+
+    private void writeHtmlHead(BufferedWriter w) throws IOException {
+        w.write("<!doctype html><html lang='en'><head><meta charset='utf-8'/>");
+        w.write("<meta name='viewport' content='width=device-width,initial-scale=1'/>");
+        w.write("<title>"+esc(TITLE)+"</title>");
+        // ---- styles ----
+        w.write("<style>");
+        w.write("body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:18px;background:#f8fafb;color:#222}");
+        w.write("h1{font-size:22px;margin:0 0 12px 0}");
+        w.write(".wrap{max-width:1400px;margin:0 auto}");
+        w.write("table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;margin:10px 0 24px 0}");
+        w.write("th,td{border:1px solid #e7eef2;padding:8px 10px;vertical-align:top;font-size:14px}");
+        w.write("th{background:#f0f5ff;text-align:left}");
+        w.write(".muted{color:#777}");
+        w.write(".ok{color:#117a00;font-weight:600}.bad{color:#b00020;font-weight:600}.skip{color:#8a6f00}");
+        w.write(".status-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #e5e5e5}");
+        w.write(".status-ok{background:#eaffea;color:#0a6}.status-bad{background:#ffecec;color:#b00}.status-skip{background:#fff4d6;color:#8a6f00}");
+        w.write(".card{margin:0;padding:0;border:0}");
+        w.write(".card summary{list-style:none;cursor:pointer;border:1px solid #dbe7f2;background:#eef6ff;padding:6px 10px;border-radius:8px}");
+        w.write(".card summary:hover{background:#e6f1ff}");
+        w.write(".card pre{margin-top:6px;border:1px solid #dbe7f2;background:#fff;border-radius:8px;padding:10px;max-height:320px;overflow:auto}");
+        // error card tint
+        w.write(".err-card summary{background:#ffecec;color:#a40000;border:1px solid #ffc9c9}");
+        w.write(".err-card summary:hover{background:#ffdede}");
+        w.write(".err-card pre{border-color:#ffc9c9}");
+        // error line coloring
+        w.write(".errline.ex{background:#ffe0e0;font-weight:700}");
+        w.write(".errline.cause{color:#a40000;font-weight:700}");
+        w.write(".errline.selenium{color:#b04e00}");
+        w.write(".errline.at{color:#666}");
+        // small helpers
+        w.write(".mono{font-family:ui-monospace,Menlo,Consolas,monospace}");
+        w.write(".nowrap{white-space:nowrap}");
+        w.write("</style>");
+        w.write("</head><body><div class='wrap'>");
+        w.write("<h1>"+esc(TITLE)+"</h1>");
+    }
+
+    private void writeSummaryHeader(BufferedWriter w, List<SuiteBlock> suites) throws IOException {
+        int total = 0, passed = 0, failed = 0, skipped = 0;
+        long duration = 0;
+        for (SuiteBlock sb : suites) {
+            for (TestBlock tb : sb.tests) {
+                total++;
+                passed += tb.passed();
+                failed += tb.failed();
+                skipped += tb.skipped();
+                duration += tb.duration();
+            }
+        }
+
+        w.write("<table>");
+        w.write("<tr><th>Total</th><th>Passed</th><th>Failed</th><th>Skipped</th><th>Duration (ms)</th></tr>");
+        w.write("<tr>");
+        w.write(td(String.valueOf(total)));
+        w.write(td(String.valueOf(passed)));
+        w.write(td(String.valueOf(failed)));
+        w.write(td(String.valueOf(skipped)));
+        w.write(td(String.valueOf(duration)));
+        w.write("</tr></table>");
+    }
+
+    private void writeSuite(BufferedWriter w, SuiteBlock sb) throws IOException {
+        w.write("<h2>Suite: " + esc(sb.name) + "</h2>");
+
+        // per-test header
+        for (TestBlock tb : sb.tests) {
+            w.write("<h3>Test: " + esc(tb.name) + "</h3>");
+            w.write("<table>");
+            w.write("<tr>");
+            w.write(th("#"));
+            w.write(th("Class"));
+            w.write(th("Method"));
+            w.write(th("Status"));
+            w.write(th("Start"));
+            w.write(th("End"));
+            w.write(th("Duration (ms)"));
+            w.write(th("Logs / Detailed differences"));
+            w.write(th("Error"));
+            w.write("</tr>");
+
+            int i=0;
+            for (Row r : tb.rows) {
+                i++;
+                w.write("<tr>");
+                w.write(td(String.valueOf(i)));
+                w.write(td(esc(r.className)));
+                w.write(td(esc(r.methodName)));
+                w.write(td(statusBadge(r.status)));
+                w.write(td(esc(TS.format(new Date(r.start())))));
+                w.write(td(esc(TS.format(new Date(r.end())))));
+                w.write(td(String.valueOf(r.dur())));
+                // logs cell
+                tdRaw(w, buildLogsCellHtml(r.r, i));
+                // error cell (collapsible, colored)
+                tdRaw(w, buildErrorCellHtml(r.r, i));
+                w.write("</tr>");
+            }
+            w.write("</table>");
+        }
+    }
+
+    // ======== cell builders ========
+
+    private static String statusBadge(Status s){
+        switch (s){
+            case PASSED: return "<span class='status-badge status-ok'>PASSED</span>";
+            case FAILED: return "<span class='status-badge status-bad'>FAILED</span>";
+            default:      return "<span class='status-badge status-skip'>SKIPPED</span>";
+        }
+    }
+
+    private static String buildLogsCellHtml(ITestResult r, int idx){
+        List<String> lines = safeReporterOutput(r);
+        String id = "log_"+idx;
+        StringBuilder b = new StringBuilder(512);
+        b.append("<details id='").append(id).append("' class='card'>")
+         .append("<summary>Detailed differences (click to expand/collapse)</summary>")
+         .append("<pre class='mono'>");
+        if (lines.isEmpty()) {
+            b.append(esc("(no Reporter.log output)"));
+        } else {
+            for (String ln : lines) {
+                // if the line already contains HTML anchors (artifact links), keep as-is
+                if (looksLikeHtml(ln)) b.append(ln).append("\n");
+                else b.append(esc(ln)).append("\n");
+            }
+        }
+        b.append("</pre></details>");
+        return b.toString();
+    }
+
+    private static boolean looksLikeHtml(String s){
+        if (s == null) return false;
+        String t = s.trim().toLowerCase(Locale.ROOT);
+        return t.startsWith("<a ") || t.startsWith("<div ") || t.startsWith("<span ")
+                || t.startsWith("<pre ") || t.startsWith("<code ") || t.startsWith("<table ");
+    }
+
+    private static String buildErrorCellHtml(ITestResult r, int index){
+        Throwable th = r.getThrowable();
+        String txt = stackTraceText(th);
+        String pretty = colorizeStack(txt);
+        String id = "err_"+index;
+        StringBuilder h = new StringBuilder(512);
+        h.append("<details id='").append(id).append("' class='card err-card'>")
+         .append("<summary>Error details (click to expand/collapse)</summary>")
+         .append("<pre class='mono'>").append(pretty).append("</pre>")
+         .append("</details>");
+        return h.toString();
+    }
+
+    // ======== utils ========
+
+    private static List<String> safeReporterOutput(ITestResult r){
+        try {
+            // TestNG 7+ has Reporter.getOutput(ITestResult)
+            List<String> x = Reporter.getOutput(r);
+            return (x == null) ? Collections.emptyList() : x;
+        } catch (Throwable t) {
+            // older TestNG fallback
+            List<String> g = Reporter.getOutput();
+            return (g == null) ? Collections.emptyList() : g;
+        }
+    }
+
+    private static String stackTraceText(Throwable t){
+        if (t == null) return "";
+        StringWriter sw = new StringWriter(4096);
+        PrintWriter pw = new PrintWriter(sw);
+        t.printStackTrace(pw);
+        pw.flush();
+        return sw.toString();
+    }
+
+    // colorize stack lines for readability
+    private static String colorizeStack(String raw){
+        if (raw == null || raw.isEmpty()) return "";
+        StringBuilder out = new StringBuilder(raw.length() + 256);
+        String[] lines = raw.split("\\r?\\n");
+        for (String ln : lines){
+            String e = esc(ln);
+
+            // emphasize common exception tokens
+            e = e.replaceAll("(?i)(NoSuchElementException|NoSuchSessionException|TimeoutException|"
+                    + "StaleElementReferenceException|ElementClickInterceptedException|WebDriverException)",
+                    "<span class='errline ex'>$1</span>");
+
+            // "Caused by:"
+            e = e.replaceAll("(?i)(Caused by:)", "<span class='errline cause'>$1</span>");
+
+            // color Selenium & stack frames
+            if (ln.contains("org.openqa.selenium"))
+                e = "<span class='errline selenium'>" + e + "</span>";
+            else if (ln.trim().startsWith("at "))
+                e = "<span class='errline at'>" + e + "</span>";
+
+            out.append(e).append("\n");
+        }
+        return out.toString();
+    }
+
+    private static String esc(String s){
+        if (s == null) return "";
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+
+    private static String th(String s){ return "<th>"+esc(s)+"</th>"; }
+    private static String td(String s){ return "<td>"+(s==null?"":s)+"</td>"; }
+    private static void tdRaw(BufferedWriter w, String html) throws IOException {
+        w.write("<td>");
+        if (html != null) w.write(html);
+        w.write("</td>");
+    }
+}

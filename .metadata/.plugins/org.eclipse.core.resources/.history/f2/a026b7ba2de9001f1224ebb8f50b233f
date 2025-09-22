@@ -1,0 +1,71 @@
+package Test;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.mail.DefaultAuthenticator;
+import org.apache.commons.mail.Email;
+import org.apache.commons.mail.SimpleEmail;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.Test;
+
+import com.testing.framework.EmailUtils;
+
+import AutoConstant.constantInput;
+import POM.AccountAddNew;
+import POM.LoginSapphire;
+
+public class NewAccountAdd implements constantInput
+{
+
+		@SuppressWarnings("deprecation")
+		@Test
+		public void NewAccAdd() throws InterruptedException
+		{
+			System.setProperty("https.protocols", "TLSv1.2");
+			System.setProperty("mail.smtp.ssl.protocols", "TLSv1.2");
+			System.setProperty("https.cipherSuites", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA");
+			System.setProperty("webdriver.chrome.driver", "./drivers/chromedriver.exe");
+			ChromeOptions options = new ChromeOptions();
+			options.addArguments("--remote-allow-origins=*");
+			WebDriver driver = new ChromeDriver(options);
+			driver.manage().window().maximize();
+			driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
+			driver.manage().timeouts().pageLoadTimeout(30, TimeUnit.SECONDS);
+			driver.manage().deleteAllCookies();
+			driver.get(URl);
+
+			LoginSapphire log = new LoginSapphire(driver);
+			log.LoginMethod();
+			AccountAddNew add = new AccountAddNew(driver);
+			add.NewAccAdd();
+			Thread.sleep(2000);
+			add.AccPage();
+			//driver.close();
+
+	}
+		@AfterTest
+		  public void sendTestNGReportEmail() throws Exception {
+	        // Path to the generated TestNG report file
+			String filePath = System.getProperty("user.home") + "/eclipse-workspace/POMTenant1/Configuration/config.properties";
+			String filePath1 = System.getProperty("user.home") + "/eclipse-workspace/POMTenant1/test-output/emailable-report.html";
+
+	        // Send the email with the TestNG report as attachment
+	        EmailUtils emailUtils=new EmailUtils();
+	        Properties prop=new Properties();
+	        prop.load(new FileInputStream(filePath));
+	        List<String> attachments=new ArrayList<>();
+	        attachments.add(filePath1);
+	        emailUtils.sendUsingGmail(prop, "Test Execution", "Email sent from selenium", attachments);
+	       // SendEmail.sendEmailWithAttachment(recipientEmail, subject, body, reportPath);
+	        
+	    }
+
+}

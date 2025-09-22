@@ -1,0 +1,339 @@
+package util;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
+public class CanvasPage {
+
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final JavascriptExecutor js;
+
+    public CanvasPage(WebDriver driver, Duration timeout) {
+        this.driver = driver;
+        this.wait   = new WebDriverWait(driver, timeout);
+        this.js     = (JavascriptExecutor) driver;
+    }
+
+    private By canvasLocator() {
+        return By.cssSelector("app-drawing-board canvas");
+    }
+
+    /** Drag any palette tile (cdk-drag) to the canvas at (fx, fy) where fx/fy are 0..1 fractions. */
+    public void dragToCanvas(WebElement source, int fx, int fy) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(canvasLocator()));
+
+        // Make sure both are in view for reliable pointer math
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", source);
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // Snapshot canvas to confirm change later
+        String before = (String) js.executeScript("return arguments[0].toDataURL('image/png');", canvas);
+
+        // Get viewport rects in CSS pixels (safe wrt zoom/scroll)
+        @SuppressWarnings("unchecked")
+        Map<String, Number> s = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height};", source);
+        @SuppressWarnings("unchecked")
+        Map<String, Number> c = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height};", canvas);
+
+        int startX = (int) Math.round(s.get("x").doubleValue() + s.get("w").doubleValue()/2.0);
+        int startY = (int) Math.round(s.get("y").doubleValue() + s.get("h").doubleValue()/2.0);
+        int endX   = (int) Math.round(c.get("x").doubleValue() + c.get("w").doubleValue()*fx);
+        int endY   = (int) Math.round(c.get("y").doubleValue() + c.get("h").doubleValue()*fy);
+
+        // Actions sequence: nudge to start CDK drag -> move to canvas point -> tiny jiggle -> release
+        int nudgeX = 50, nudgeY = 50;                   // exceed CDK drag threshold
+        int dx = (endX - startX) - nudgeX;
+        int dy = (endY - startY) - nudgeY;
+        
+        
+        new Actions(driver)
+            .moveToElement(source)                     // centers by default
+            .clickAndHold()
+            .pause(Duration.ofMillis(200))
+            .moveByOffset(10, 10)
+            .pause(Duration.ofMillis(120))
+            .moveToElement(canvas, fx ,fy )
+            .moveByOffset(3, 3)                        // jiggle so canvas sees a move
+            .pause(Duration.ofMillis(80))
+            .release()
+            .perform();
+
+        // If pixels didn’t change, use PointerEvents fallback (some canvas apps need it)
+        String after = (String) js.executeScript("return arguments[0].toDataURL('image/png');", canvas);
+        if (before != null && before.equals(after)) {
+            pointerEventsFallback(source, endX, endY);
+        }
+    }
+
+    /** Synthetic pointer events at viewport (x,y) – robust for canvas listeners on document/window. */
+    private void pointerEventsFallback(WebElement source, int x, int y) {
+        String script =
+            "const src=arguments[0], x=arguments[1], y=arguments[2];" +
+            "const id=1;" +
+            "function pe(t,el,x,y){el.dispatchEvent(new PointerEvent(t,{pointerId:id,pointerType:'mouse',bubbles:true,cancelable:true,buttons:1,clientX:x,clientY:y,isPrimary:true}));}" +
+            "function me(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,buttons:1,clientX:x,clientY:y}));}" +
+            "pe('pointerdown',src,0,0); me('mousedown',src,0,0);" +
+            "pe('pointermove',document,x,y); me('mousemove',document,x,y);" +
+            "pe('pointermove',document,x+4,y+4); me('mousemove',document,x+4,y+4);" +
+            "pe('pointerup',document,x+4,y+4); me('mouseup',document,x+4,y+4);";
+        js.executeScript(script, source, x, y);
+    }
+
+ 
+    
+    
+      
+ // ====== tiny utilities ======
+    @SuppressWarnings("unchecked")
+    private Map<String, Number> bcr(WebElement el) {
+        return (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect();" +
+            "return {l:b.left,t:b.top,w:b.width,h:b.height,r:b.right,bm:b.bottom," +
+            "        cx:b.left+b.width/2, cy:b.top+b.height/2};", el);
+    }
+
+    // Fire a complete pointer sequence at viewport (x,y) on the topmost element there
+    private void pointerSequenceAt(double x, double y, boolean dbl) {
+        js.executeScript(
+            "const x=arguments[0], y=arguments[1], dbl=arguments[2];" +
+            "const el=document.elementFromPoint(x,y)||document.body;" +
+            "const pe=(t)=>new PointerEvent(t,{bubbles:true,cancelable:true,clientX:x,clientY:y," +
+            "  pointerType:'mouse',pointerId:1,buttons:1,isPrimary:true});" +
+            "const me=(t)=>new MouseEvent(t,{bubbles:true,cancelable:true,clientX:x,clientY:y,buttons:1});" +
+            "el.dispatchEvent(pe('pointerover')); el.dispatchEvent(pe('pointerenter')); el.dispatchEvent(pe('pointermove'));" +
+            "el.dispatchEvent(pe('pointerdown'));  el.dispatchEvent(me('mousedown'));" +
+            "el.dispatchEvent(pe('pointerup'));    el.dispatchEvent(me('mouseup')); el.dispatchEvent(me('click'));" +
+            "if(dbl){ el.dispatchEvent(me('dblclick')); }",
+            x, y, dbl
+        );
+    }
+
+    // ====== 1) Wait for overlay and measure the blue panel ======
+    private By sidesBy = By.cssSelector("#css3D p.lineId");
+
+    // returns {x, y, w, h} in *canvas-local* pixels (relative to canvas top-left)
+    @SuppressWarnings("unchecked")
+    public int[] measureBlueInnerRect() {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+            By.cssSelector("app-drawing-board canvas")));
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // presence (these can be 'invisible' to Selenium because of transforms)
+        wait.until(ExpectedConditions.presenceOfElementLocated(sidesBy));
+        java.util.List<WebElement> sides = driver.findElements(sidesBy);
+
+        // If we don’t have 4 sides yet, fall back to a safe inset (works after brand-new drops)
+        Map<String, Number> cr = bcr(canvas);
+        int cw = cr.get("w").intValue(), ch = cr.get("h").intValue();
+        if (sides.size() < 4) {
+            int inset = Math.max(8, Math.min(cw, ch) / 20);  // ≈5% inset
+            return new int[]{inset, inset, cw - 2*inset, ch - 2*inset};
+        }
+
+        // classify four sides by their centers
+        record S(WebElement el, double cx, double cy) {}
+        java.util.List<S> ss = new java.util.ArrayList<>();
+        for (WebElement el : sides) {
+            Map<String, Number> r = bcr(el);
+            ss.add(new S(el, r.get("cx").doubleValue(), r.get("cy").doubleValue()));
+        }
+        S top    = ss.stream().min(java.util.Comparator.comparingDouble(S::cy)).get();
+        S bottom = ss.stream().max(java.util.Comparator.comparingDouble(S::cy)).get();
+        S left   = ss.stream().min(java.util.Comparator.comparingDouble(S::cx)).get();
+        S right  = ss.stream().max(java.util.Comparator.comparingDouble(S::cx)).get();
+
+        // inner edges = inner sides of each overlay box
+        Map<String, Number> rt = bcr(top.el());
+        Map<String, Number> rb = bcr(bottom.el());
+        Map<String, Number> rl = bcr(left.el());
+        Map<String, Number> rr = bcr(right.el());
+
+        double innerLeft   = rl.get("r").doubleValue();
+        double innerRight  = rr.get("l").doubleValue();
+        double innerTop    = rt.get("bm").doubleValue();
+        double innerBottom = rb.get("t").doubleValue();
+
+        // convert to canvas-local pixels
+        int x = (int)Math.round(innerLeft  - cr.get("l").doubleValue());
+        int y = (int)Math.round(innerTop   - cr.get("t").doubleValue());
+        int w = (int)Math.round(innerRight - innerLeft);
+        int h = (int)Math.round(innerBottom- innerTop);
+        // clamp
+        x = Math.max(1, Math.min(cw-2, x)); y = Math.max(1, Math.min(ch-2, y));
+        w = Math.max(2, Math.min(cw-2-x, w)); h = Math.max(2, Math.min(ch-2-y, h));
+        return new int[]{x, y, w, h};
+    }
+
+    // ====== 2) Click helpers you can call from POM ======
+
+    /** Click the *center* of the light-blue area. */
+    public void clickBlueCenter() {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+            By.cssSelector("app-drawing-board canvas")));
+        int[] r = measureBlueInnerRect();  // {x,y,w,h}
+        Map<String, Number> cr = bcr(canvas);
+        double vx = cr.get("l").doubleValue() + r[0] + r[2]/2.0;
+        double vy = cr.get("t").doubleValue() + r[1] + r[3]/2.0;
+        pointerSequenceAt(vx, vy, false);
+    }
+
+    /** Click *inside* the blue area near the requested side.
+     *  side: "top"|"bottom"|"left"|"right"
+     *  insetPx: how far inside from that side to click.
+     */
+    public void clickBlueNearSide(String side, int insetPx) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+            By.cssSelector("app-drawing-board canvas")));
+        int[] r = measureBlueInnerRect();  // {x,y,w,h}
+        Map<String, Number> cr = bcr(canvas);
+
+        int cx, cy;
+        switch (side.toLowerCase()) {
+            case "top"    -> { cx = r[0] + r[2]/2; cy = r[1] + Math.max(2, insetPx); }
+            case "bottom" -> { cx = r[0] + r[2]/2; cy = r[1] + r[3] - Math.max(2, insetPx); }
+            case "left"   -> { cx = r[0] + Math.max(2, insetPx); cy = r[1] + r[3]/2; }
+            case "right"  -> { cx = r[0] + r[2] - Math.max(2, insetPx); cy = r[1] + r[3]/2; }
+            default -> throw new IllegalArgumentException("side must be top/bottom/left/right");
+        }
+        double vx = cr.get("l").doubleValue() + cx;
+        double vy = cr.get("t").doubleValue() + cy;
+
+        pointerSequenceAt(vx, vy, false);     // single click
+        // pointerSequenceAt(vx, vy, true);   // use this if the app needs a double-click to select
+    }
+
+    
+    
+    
+    ////////////Outside of the frame
+    
+ // helper: bounding rect
+    @SuppressWarnings("unchecked")
+    private Map<String, Number> bcrOuterFrame(WebElement el) {
+        return (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect();" +
+            "return {l:b.left,t:b.top,w:b.width,h:b.height,r:b.right,bm:b.bottom," +
+            "        cx:b.left+b.width/2, cy:b.top+b.height/2};", el);
+    }
+
+    // helper: is the element under the point part of the board?
+    private boolean isBoardAt(double x, double y) {
+        Boolean ok = (Boolean) js.executeScript(
+            "const el=document.elementFromPoint(arguments[0],arguments[1]);" +
+            "let n=el; while(n){ if(n.id==='css3D') return true; if(n.tagName && n.tagName.toLowerCase()==='canvas') return true; n=n.parentElement; }" +
+            "return false;", x, y);
+        return Boolean.TRUE.equals(ok);
+    }
+
+    // helper: full pointer sequence at (x,y)
+    private void pointerSeq(double x, double y) {
+        js.executeScript(
+            "const x=arguments[0], y=arguments[1];" +
+            "const el=document.elementFromPoint(x,y)||document.body;" +
+            "const pe=(t)=>new PointerEvent(t,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerType:'mouse',pointerId:1,buttons:1,isPrimary:true});" +
+            "const me=(t)=>new MouseEvent(t,{bubbles:true,cancelable:true,clientX:x,clientY:y,buttons:1});" +
+            "el.dispatchEvent(pe('pointerover')); el.dispatchEvent(pe('pointerenter')); el.dispatchEvent(pe('pointermove'));" +
+            "el.dispatchEvent(pe('pointerdown'));  el.dispatchEvent(me('mousedown'));" +
+            "el.dispatchEvent(pe('pointerup'));    el.dispatchEvent(me('mouseup')); el.dispatchEvent(me('click'));",
+            x, y
+        );
+    }
+
+    // you already have this; kept here for clarity
+    private final By sidesBy = By.cssSelector("#css3D p.lineId");
+
+    // INNER rect (your existing implementation)
+    public int[] measureBlueInnerRect() { /* keep your working version */ return new int[]{/* ... */}; }
+
+    // OUTER rect (as we discussed earlier)
+    public int[] measureBlueOuterRect() { /* keep the version I gave you */ return new int[]{/* ... */}; }
+
+    /** Click in the FRAME BAND near a side.
+     *  side: "top"|"bottom"|"left"|"right"
+     *  bandOffset: 0..1 (0 = outer edge, 1 = inner edge; e.g. 0.1 is close to OUTER)
+     *  Robust for top/left: verifies target is board; otherwise nudges inward and retries.
+     */
+    public void clickFrameBandNearSide(String side, double bandOffset) {
+        WebElement canvas = wait.until(
+            ExpectedConditions.visibilityOfElementLocated(By.cssSelector("app-drawing-board canvas")));
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        int[] inner = measureBlueInnerRect();
+        int[] outer = measureBlueOuterRect();
+        Map<String, Number> cr = bcr(canvas);
+
+        // pick band coordinate (canvas-local)
+        double localX, localY;
+        switch (side.toLowerCase()) {
+            case "top" -> {
+                double yOuter = outer[1];
+                double yInner = inner[1];
+                localY = yOuter + (yInner - yOuter) * bandOffset;
+                localX = inner[0] + inner[2] * 0.5;
+            }
+            case "bottom" -> {
+                double yOuter = outer[1] + outer[3];
+                double yInner = inner[1] + inner[3];
+                localY = yOuter + (yInner - yOuter) * bandOffset;
+                localX = inner[0] + inner[2] * 0.5;
+            }
+            case "left" -> {
+                double xOuter = outer[0];
+                double xInner = inner[0];
+                localX = xOuter + (xInner - xOuter) * bandOffset;
+                localY = inner[1] + inner[3] * 0.5;
+            }
+            case "right" -> {
+                double xOuter = outer[0] + outer[2];
+                double xInner = inner[0] + inner[2];
+                localX = xOuter + (xInner - xOuter) * bandOffset;
+                localY = inner[1] + inner[3] * 0.5;
+            }
+            default -> throw new IllegalArgumentException("side must be top/bottom/left/right");
+        }
+
+        // convert to viewport coords
+        double baseX = cr.get("l").doubleValue() + localX;
+        double baseY = cr.get("t").doubleValue() + localY;
+
+        // try base point, then auto-nudge inward if we hit header/gutter/overlay
+        int tries = 0;
+        int nudge = 8; // pixels to step inward toward the panel center per retry
+        double vx = (inner[0] + inner[2] * 0.5) - localX;  // vector toward panel center
+        double vy = (inner[1] + inner[3] * 0.5) - localY;
+        double len = Math.max(1e-6, Math.hypot(vx, vy));
+        vx /= len; vy /= len;
+
+        double clickX = baseX, clickY = baseY;
+        while (tries < 3 && !isBoardAt(clickX, clickY)) {
+            // nudge 8px toward the panel center (keeps us in the band but away from toolbar/gutter)
+            clickX += vx * nudge;
+            clickY += vy * nudge;
+            tries++;
+        }
+
+        // final safety clamp to canvas
+        double L = cr.get("l").doubleValue(), T = cr.get("t").doubleValue();
+        double W = cr.get("w").doubleValue(), H = cr.get("h").doubleValue();
+        clickX = Math.max(L + 2, Math.min(L + W - 3, clickX));
+        clickY = Math.max(T + 2, Math.min(T + H - 3, clickY));
+
+        pointerSeq(clickX, clickY);
+    }
+
+
+
+
+
+
+
+}

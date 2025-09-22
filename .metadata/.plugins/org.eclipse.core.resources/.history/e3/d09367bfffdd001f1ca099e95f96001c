@@ -1,0 +1,91 @@
+package POM;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+public class NewQuotePage 
+{
+public WebDriver driver;
+	
+	int rdmnumber=(int)(Math.random()*1000);
+	
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+	
+	@FindBy(xpath="(//div[@routerlinkactive='active'])[5]")
+	private WebElement quotetab;
+	
+	@FindBy(xpath="(//div[@class='cursor-pointer rotate'])[2]")
+	private WebElement actionbutton;
+	
+	@FindBy(xpath="//span[.='SSM Auotamation170 Jan 29 2025']")
+	private WebElement projectname;
+	
+	@FindBy(xpath="//button[@class='nav-link subtitle-2']")
+	private WebElement catalog;
+	
+	@FindBy(xpath="(//button[contains(text(),'Select design')])[1]")
+	private WebElement selectfirstdesign;
+	
+	@FindBy(xpath="(//button[contains(text(),'Select design')])[2]")
+	private WebElement selectseconddesign;
+	
+	@FindBy(xpath="(//button[contains(text(),'Select design')])[3]")
+	private WebElement selectthirddesign;
+	
+	@FindBy(xpath="(//button[contains(text(),'Select design')])[4]")
+	private WebElement selectfourthdesign;
+	
+	@FindBy(xpath="(//button[contains(text(),'Select design')])[5]")
+	private WebElement selectfifthdesign;
+	
+	@FindBy(xpath="//input[@formcontrolname='designCode']")
+	private WebElement designreftextfield;
+	
+	@FindBy(xpath="//input[@formcontrolname='quantity']")
+	private WebElement designqtyfield;
+	
+	@FindBy(xpath="//input[@formcontrolname='location']")
+	private WebElement deslocationfield;
+	
+	@FindBy(xpath="//input[@formcontrolname='floorNo']")
+	private WebElement floornofield;
+	
+	@FindBy(xpath="//textarea[@formcontrolname='remark']")
+	private WebElement notetextfield;
+	
+	@FindBy(xpath="//button[.='Apply']")
+	private WebElement applybutton;
+	
+	@FindBy(xpath="(//div[@class='btn-group'])[2]")
+	private WebElement savebutton;
+	
+	
+	public NewQuotePage(WebDriver driver)
+
+	{
+		PageFactory.initElements(driver, this);
+	}
+	
+	public void createDesign()
+	{
+		quotetab.click();
+		projectname.click();
+		catalog.click();
+		selectfirstdesign.click();
+		designreftextfield.sendKeys("W1");
+		designqtyfield.sendKeys("5");
+		deslocationfield.sendKeys("Kitchen");
+		floornofield.sendKeys("GF");
+		notetextfield.sendKeys("Remark Automartion"+ rdmnumber + formattedDate);
+		applybutton.click();
+		savebutton.click();
+	}
+	
+}

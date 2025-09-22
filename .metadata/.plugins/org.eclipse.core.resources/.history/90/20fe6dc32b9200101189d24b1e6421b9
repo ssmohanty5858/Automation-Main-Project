@@ -1,0 +1,456 @@
+package util;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
+
+// Adjust v133 to your Selenium DevTools version if needed
+import org.openqa.selenium.devtools.v139.log.Log;
+import org.openqa.selenium.devtools.v139.network.Network;
+import org.openqa.selenium.devtools.v139.runtime.Runtime;
+import org.testng.Reporter;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Predicate;
+
+public class NetworkConsoleRecorder implements AutoCloseable {
+
+    // ===== Public DTOs =====
+    public static class NetEvent {
+        public String time;              // wall-clock when request observed
+        public String requestId;
+        public String method;
+        public String url;
+        public String initiator;
+        public String resourceType;
+        public String mimeType;
+
+        public Integer status;           // HTTP status (null if none)
+        public Boolean fromDiskCache, fromPrefetchCache;
+
+        public Long encodedDataLength;   // total encoded bytes (summed from dataReceived)
+        public Long durationMs;          // computed (ms) using System.nanoTime()
+        public String failure;           // loadingFailed errorText (if any)
+
+        // internal timing (not printed)
+        Long startNano;
+        Long endNano;
+    }
+
+    public static class ConsoleEvent {
+        public String time, level, text, source;
+    }
+
+    // ===== Instance fields =====
+    private final WebDriver driver;
+    private final DevTools devTools;
+
+    private final Queue<NetEvent> netEvents = new ConcurrentLinkedQueue<>();
+    private final Queue<ConsoleEvent> consoleEvents = new ConcurrentLinkedQueue<>();
+    private final Map<String, NetEvent> byRequestId = new ConcurrentHashMap<>();
+
+    private Predicate<NetEvent> netFilter =
+            e -> "XHR".equalsIgnoreCase(e.resourceType) || "Fetch".equalsIgnoreCase(e.resourceType);
+
+    private final DateTimeFormatter tsFmt = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSS");
+    private Path outFile;
+    private long settleMillis = 1200;
+    private int urlMax = 180; // truncate long URLs for readability
+
+    // ===== Construction / wiring =====
+    public NetworkConsoleRecorder(WebDriver driver, Path outFile) {
+        this.driver = Objects.requireNonNull(driver, "driver");
+        this.outFile = (outFile != null) ? outFile : Paths.get("ui_action_network_console_log.txt");
+
+        devTools = ((HasDevTools) driver).getDevTools();
+        devTools.createSession();
+
+        // Enable domains
+        devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.empty(), java.util.Optional.empty()));
+        devTools.send(Log.enable());
+        devTools.send(Runtime.enable());
+
+        // ---- Network listeners ----
+        devTools.addListener(Network.requestWillBeSent(), evt -> {
+            NetEvent e = new NetEvent();
+            e.time = now();
+            e.requestId = String.valueOf(evt.getRequestId());
+            e.method = evt.getRequest().getMethod();
+            e.url = evt.getRequest().getUrl();
+            e.initiator = evt.getInitiator() != null ? String.valueOf(evt.getInitiator().getType()) : "UNKNOWN";
+            e.resourceType = evt.getType().isPresent() ? String.valueOf(evt.getType().get()) : "UNKNOWN";
+            e.startNano = System.nanoTime(); // ✅ robust timing
+            byRequestId.put(e.requestId, e);
+            netEvents.add(e);
+        });
+
+        devTools.addListener(Network.responseReceived(), evt -> {
+            String rid = String.valueOf(evt.getRequestId());
+            NetEvent e = byRequestId.getOrDefault(rid, new NetEvent());
+            e.requestId = rid;
+            e.status = evt.getResponse().getStatus().intValue();
+            e.mimeType = evt.getResponse().getMimeType();
+            e.fromDiskCache = evt.getResponse().getFromDiskCache().orElse(false);
+            e.fromPrefetchCache = evt.getResponse().getFromPrefetchCache().orElse(false);
+            byRequestId.put(rid, e);
+        });
+
+        // Accumulate bytes as chunks arrive (robust across versions)
+        devTools.addListener(Network.dataReceived(), evt -> {
+            String rid = String.valueOf(evt.getRequestId());
+            NetEvent e = byRequestId.get(rid);
+            if (e != null) {
+                Number encLen = evt.getEncodedDataLength(); // Number; chunk size (encoded)
+                long add = (encLen != null) ? encLen.longValue() : 0L;
+                e.encodedDataLength = (e.encodedDataLength == null) ? add : e.encodedDataLength + add;
+            }
+        });
+
+        // Final timing
+        devTools.addListener(Network.loadingFinished(), evt -> {
+            String rid = String.valueOf(evt.getRequestId());
+            NetEvent e = byRequestId.get(rid);
+            if (e != null) {
+                e.endNano = System.nanoTime(); // ✅ robust timing
+                if (e.startNano != null && e.endNano != null && e.endNano >= e.startNano) {
+                    e.durationMs = (e.endNano - e.startNano) / 1_000_000L;
+                }
+            }
+        });
+
+        // Capture failures (no response)
+        devTools.addListener(Network.loadingFailed(), evt -> {
+            String rid = String.valueOf(evt.getRequestId());
+            NetEvent e = byRequestId.getOrDefault(rid, new NetEvent());
+            e.requestId = rid;
+            e.failure = evt.getErrorText();
+            if (e.startNano == null) e.startNano = System.nanoTime();
+            e.endNano = System.nanoTime();
+            e.durationMs = (e.endNano - e.startNano) / 1_000_000L;
+            if (e.status == null) e.status = 0; // no HTTP status
+            byRequestId.put(rid, e);
+        });
+
+        // ---- Console listeners (two sources) ----
+        devTools.addListener(Log.entryAdded(), entry -> {
+            ConsoleEvent c = new ConsoleEvent();
+            c.time = now();
+            c.level = entry.getLevel().toString();
+            c.text = entry.getText();
+            c.source = entry.getSource().toString();
+            consoleEvents.add(c);
+        });
+
+        devTools.addListener(Runtime.consoleAPICalled(), evt -> {
+            ConsoleEvent c = new ConsoleEvent();
+            c.time = now();
+            c.level = evt.getType().toString(); // log|warn|error|info
+            c.text = evt.getArgs().toString();  // JSON-ish arg list
+            c.source = "Runtime.consoleAPICalled";
+            consoleEvents.add(c);
+        });
+
+        // Header
+        try {
+            Files.writeString(this.outFile,
+                    "UI Action Network & Console Log\nGenerated: " + now() +
+                            "\nFile: " + this.outFile.toAbsolutePath() + "\n",
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to open log file: " + this.outFile, e);
+        }
+    }
+
+    // ===== Public configuration =====
+    public void setOutput(Path file)       { this.outFile = file; }
+    public void setSettleMillis(long ms)   { this.settleMillis = Math.max(0, ms); }
+    public void setUrlMax(int maxChars)    { this.urlMax = Math.max(40, maxChars); }
+
+    /** Default filter counts only XHR/Fetch. You can narrow to your API host etc. */
+    public void setNetworkFilter(Predicate<NetEvent> filter) { this.netFilter = Objects.requireNonNull(filter); }
+
+    public void record(String title, Runnable action) {
+        final int netStart = netEvents.size();
+        final int consoleStart = consoleEvents.size();
+        final String startedAt = now();
+
+        action.run();
+        sleep(settleMillis);
+
+        List<NetEvent> newNet = slice(netEvents, netStart);
+        List<ConsoleEvent> newConsole = slice(consoleEvents, consoleStart);
+
+        // apply filter + freeze snapshot for printing
+        List<NetEvent> apis = new ArrayList<>();
+        for (NetEvent e : newNet) if (netFilter.test(e)) apis.add(e);
+
+        // --- NEW: partition into XHR and non-XHR ---
+        List<NetEvent> xhrOnly = new ArrayList<>();
+        List<NetEvent> uiOnly  = new ArrayList<>();
+        for (NetEvent e : apis) {
+            String type = (e.resourceType == null) ? "" : e.resourceType;
+            if ("XHR".equalsIgnoreCase(type)) {
+                xhrOnly.add(e);
+            } else {
+                uiOnly.add(e);
+            }
+        }
+        // -------------------------------------------
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n============================================================\n");
+        sb.append("ACTION: ").append(title).append("\n");
+        sb.append("Started: ").append(startedAt).append("\n");
+        sb.append("New API calls: ").append(apis.size()).append("\n");
+        sb.append("New console entries: ").append(newConsole.size()).append("\n\n");
+
+        // XHR first
+        if (!xhrOnly.isEmpty()) {
+            sb.append("-- API CALLS (Network) -------------------------------------\n");
+            sb.append(renderApiTable(xhrOnly));
+        }
+
+        // Non-XHR afterwards
+        if (!uiOnly.isEmpty()) {
+            sb.append("\n-- UI CALLS (Network) --------------------------------------\n");
+            sb.append(renderApiTable(uiOnly));
+        }
+
+        // keep your failed-calls section as-is (over entire filtered set)
+        List<NetEvent> failed = filterFailed(apis);
+        if (!failed.isEmpty()) {
+            sb.append("\n-- FAILED CALLS (status >= 400 or failure) -----------------\n");
+            sb.append(renderApiTable(failed));
+        }
+
+        if (!newConsole.isEmpty()) {
+            sb.append("\n-- CONSOLE --------------------------------------------------\n");
+            for (ConsoleEvent c : newConsole) {
+                sb.append(String.format("[%s] level=%s source=%s%n    %s%n",
+                        c.time, c.level, c.source, c.text));
+            }
+        }
+
+        try {
+            String body = sb.toString();
+
+            // (A) keep appending to the main test log file (your existing behavior)
+            Files.writeString(outFile, body, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+
+            // (B) ALSO write a dedicated per-action HTML file
+            Path dir = (outFile.getParent() != null) ? outFile.getParent() : Paths.get("logs");
+            Files.createDirectories(dir);
+            String baseName = nowForFile() + "_" + safe(title);
+            Path perActionHtml = dir.resolve(baseName + ".html");
+            Files.writeString(perActionHtml, toHtmlDoc("Method: " + title, body),
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+            // Put a copy next to the TestNG report for easy linking
+            Path reportDir = Paths.get("test-output", "artifacts");
+            Files.createDirectories(reportDir);
+            Path reportCopy = reportDir.resolve(perActionHtml.getFileName());
+            try {
+                Files.copy(perActionHtml, reportCopy, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ignore) { /* non-fatal */ }
+
+            // Add a clickable link under the current @Test method output; opens in new tab
+            String linkText = perActionHtml.getFileName().toString();
+            String href = "artifacts/" + linkText; // relative to test-output/*.html
+            org.testng.Reporter.log(
+                "<a href='" + href + "' target='_blank' rel='noopener'>" + linkText + "</a>",
+                true
+            );
+
+            //System.out.printf("Recorded: %s → %s%n", title, perActionHtml.toAbsolutePath());
+        } catch (IOException ioe) {
+            throw new RuntimeException("Failed writing logs", ioe);
+        }
+
+
+    }
+    
+
+    // ===== Helpers =====
+    private String renderApiTable(List<NetEvent> list) {
+        // Fixed-width columns for plain-text readability
+        // Cols: METHOD(7) STATUS(6) SIZE(B)(10) TIME(ms)(9) TYPE(7) INITIATOR(12) MIME(20) URL(rest)
+        String fmtHeader = "%-7s %-6s %-10s %-9s %-7s %-12s %-20s %s%n";
+        String fmtRow    = "%-7s %-6s %-10s %-9s %-7s %-12s %-20s %s%n";
+
+        StringBuilder b = new StringBuilder();
+        b.append(String.format(fmtHeader, "METHOD", "STATUS", "SIZE(B)", "TIME(ms)", "TYPE", "INITIATOR", "MIME", "URL"));
+        b.append(String.format(fmtHeader, repeat("-",7), repeat("-",6), repeat("-",10), repeat("-",9),
+                repeat("-",7), repeat("-",12), repeat("-",20), repeat("-",30)));
+
+        for (NetEvent e : list) {
+            String method    = nonNull(e.method);
+            String status    = e.status == null ? "-" : String.valueOf(e.status);
+            String size      = e.encodedDataLength == null ? "-" : String.valueOf(e.encodedDataLength);
+            String timeMs    = e.durationMs == null ? "-" : String.valueOf(e.durationMs);
+            String type      = nonNull(e.resourceType);
+            String initiator = nonNull(e.initiator);
+            String mime      = nonNull(e.mimeType);
+            String url       = truncate(nonNull(e.url), urlMax);
+
+            b.append(String.format(fmtRow, method, status, size, timeMs, type, initiator, mime, url));
+            if (e.failure != null && !e.failure.isBlank()) {
+                b.append(String.format("%-7s %-6s %-10s %-9s %-7s %-12s %-20s %s%n",
+                        "", "", "", "", "", "", "failure:", e.failure));
+            }
+        }
+        return b.toString();
+    }
+
+    private static List<NetEvent> filterFailed(List<NetEvent> list) {
+        List<NetEvent> failed = new ArrayList<>();
+        for (NetEvent e : list) {
+            if ((e.status != null && e.status >= 400) || (e.failure != null && !e.failure.isBlank())) {
+                failed.add(e);
+            }
+        }
+        return failed;
+    }
+
+    private <T> List<T> slice(Queue<T> q, int from) {
+        List<T> all = new ArrayList<>(q);
+        if (from <= 0) return all;
+        return all.subList(from, all.size());
+    }
+
+    private String truncate(String s, int max) {
+        if (s == null) return "-";
+        if (s.length() <= max) return s;
+        return s.substring(0, max - 3) + "...";
+    }
+
+    private static String repeat(String s, int n) {
+        return String.valueOf(s).repeat(Math.max(0, n));
+    }
+
+    private String now() { return LocalDateTime.now().format(tsFmt); }
+
+    private static String nonNull(String s) { return (s == null || s.isBlank()) ? "-" : s; }
+
+    private void sleep(long ms) { try { Thread.sleep(ms); } catch (InterruptedException ignored) {} }
+
+    @Override public void close() { /* nothing explicit; close happens with driver.quit() */ }
+
+	public static Object attach(WebDriver driver2) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	private static String safe(String s) {
+	    if (s == null || s.isBlank()) return "step";
+	    String clean = s.replaceAll("[\\\\/:*?\"<>|]+", "_").trim();
+	    return clean.isBlank() ? "step" : clean;
+	}
+	private static String nowForFile() {
+	    return LocalDateTime.now()
+	            .format(DateTimeFormatter.ofPattern("uuuuMMdd_HHmmss_SSS"));
+	}
+
+	private static String escHtml(String s) {
+	    if (s == null) return "";
+	    return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+	}
+	private static String toHtmlDoc(String title, String bodyText) {
+	    String escaped = escHtml(bodyText);
+	    return "<!doctype html><html><head><meta charset='utf-8'/>"
+	         + "<title>" + escHtml(title) + "</title>"
+	         + "<style>"
+	         + "body{font:13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;"
+	         + "background:#fff;color:#111;margin:16px}"
+	         + "h2{margin:0 0 12px;font:600 14px system-ui}"
+	         + "pre{padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;overflow:auto}"
+	         + "a{color:#2563eb;text-decoration:none} a:hover{text-decoration:underline}"
+	         + "</style></head><body>"
+	         + "<h2>" + escHtml(title) + "</h2>"
+	         + "<pre>" + escaped + "</pre>"
+	         + "</body></html>";
+	}
+	
+	private String renderNetworkPage() {
+	    // summary
+	    int all = apiRows.size() + uiRows.size();
+	    long apiNew = apiRows.stream().filter(r -> r.status < 400).count();
+	    long apiErr = apiRows.stream().filter(NetworkConsoleRecorder::isFailure).count();
+
+	    // failures list
+	    List<Row> apiFails = new ArrayList<>();
+	    for (Row r : apiRows) if (isFailure(r)) apiFails.add(r);
+
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("""
+	        <!doctype html><meta charset='utf-8'><title>Network / API calls</title>
+	        <style>
+	          body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:16px;background:#fafafa}
+	          pre{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:12px;
+	              white-space:pre-wrap;word-break:break-word}
+	          h2{margin:.2rem 0 0.6rem}
+	          .muted{color:#777}
+	          .sec{margin-top:18px}
+	          .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+	          .hdr{background:#f3f5f7;border:1px solid #e6e6e6;border-radius:8px;padding:8px 12px;margin-bottom:8px}
+	          .kpi{display:inline-block;background:#fff;border:1px solid #e6e6e6;border-radius:8px;
+	               padding:8px 12px;margin-right:8px;margin-bottom:8px}
+	          table{width:100%;border-collapse:collapse;background:#fff}
+	          th,td{border:1px solid #e6e6e6;padding:6px 8px;font-size:13px;vertical-align:top}
+	          th{background:#f3f5f7;text-align:left}
+	          /* NEW: mark failing rows red */
+	          tr.bad{background:#fff2f2}
+	          tr.bad td{color:#c00;font-weight:600}
+	        </style>
+	        <h2>Network / API calls</h2>
+	    """);
+
+	    // KPIs
+	    sb.append("<div class='hdr'>")
+	      .append("<span class='kpi'>Started at: ").append(esc(TF.format(Instant.ofEpochMilli(startedAt)))).append("</span>")
+	      .append("<span class='kpi'>Total Calls: ").append(all).append("</span>")
+	      .append("<span class='kpi'>Passed API : ").append(apiNew).append("</span>")
+	      .append("<span class='kpi'>Failed API : ").append(apiErr).append("</span>")
+	      .append("</div>");
+
+	    // table section helper (adds red class on failures)
+	    java.util.function.BiConsumer<String, List<Row>> section =
+	        (title, list) -> {
+	            sb.append("<div class='sec'>")
+	              .append("<div class='hdr mono'><b>").append(esc(title)).append("</b></div>")
+	              .append("<table class='mono'><tr>")
+	              .append("<th>METHOD</th><th>STATUS</th><th>SIZE(B)</th><th>TIME(ms)</th>")
+	              .append("<th>TYPE</th><th>INITIATOR</th><th>MIME</th><th>URL</th></tr>");
+	            for (Row r : list) {
+	                String trCls = isFailure(r) ? " class='bad'" : "";
+	                sb.append("<tr").append(trCls).append(">")
+	                  .append("<td>").append(esc(r.method)).append("</td>")
+	                  .append("<td>").append(r.status).append("</td>")
+	                  .append("<td>").append(r.sizeBytes <= 0 ? "-" : String.valueOf(r.sizeBytes)).append("</td>")
+	                  .append("<td>").append(r.timeMs).append("</td>")
+	                  .append("<td>").append(esc(r.type)).append("</td>")
+	                  .append("<td>").append(esc(r.initiator)).append("</td>")
+	                  .append("<td>").append(esc(r.mime)).append("</td>")
+	                  .append("<td>").append(esc(r.url)).append("</td>")
+	                  .append("</tr>");
+	            }
+	            sb.append("</table></div>");
+	        };
+
+	    // existing sections
+	    section.accept("-- API CALLS (Network) ----------------------------------------", apiRows);
+	    section.accept("-- UI CALLS (Network) -----------------------------------------", uiRows);
+
+	    // NEW: failures-only section
+	    section.accept("-- API FAILURES (Network) -------------------------------------", apiFails);
+
+	    return sb.toString();
+	}
+
+
+}

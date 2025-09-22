@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy package &apos;POM&apos; to &apos;SaintGobainProduction/src&apos;&#x0D;&#x0A;- Original project: &apos;SaintGobainUAT&apos;&#x0D;&#x0A;- Destination element: &apos;SaintGobainProduction/src&apos;&#x0D;&#x0A;- Original element: &apos;SaintGobainUAT/src/POM&apos;" description="Copy package" destination="=SaintGobainProduction/src" element1="/src&lt;POM" flags="589830" fragments="1" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyPackages" stamp="1718520999568" version="1.0"/>
+</session>

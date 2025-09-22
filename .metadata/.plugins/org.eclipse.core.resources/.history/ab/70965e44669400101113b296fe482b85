@@ -1,0 +1,133 @@
+package listeners;
+
+import org.testng.*;
+import org.testng.ITestListener;
+import org.testng.ITestResult;
+
+import Test.baseTest;
+
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.apache.commons.io.FileUtils;
+import util.Log;
+
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class ReportingListener implements ITestListener, IInvokedMethodListener {
+
+    // Store screenshot paths keyed by test method full name
+    private static final Map<String, String> screenshotMap = new ConcurrentHashMap<>();
+
+    @Override
+    public void onStart(ITestContext context) {
+        // Optional: Log start of suite
+        // Log.info("SUITE", "Start suite: " + context.getSuite().getName());
+    }
+
+    @Override
+    public void onFinish(ITestContext context) {
+        // Optional: Log finish of suite
+        // Log.info("SUITE", "Finish suite: " + context.getSuite().getName());
+    }
+
+    @Override
+    public void onTestStart(ITestResult result) {
+        Reporter.setCurrentTestResult(result); // bind current test result for reporting
+        // Log.info("TEST", "Start: " + testName(result));
+    }
+
+    @Override
+    public void onTestSuccess(ITestResult result) {
+        Reporter.setCurrentTestResult(result);
+        // Log.info("TEST", "PASS: " + testName(result));
+    }
+
+    @Override
+    public void onTestFailure(ITestResult result) {
+        Reporter.setCurrentTestResult(result);
+
+        // Capture screenshot on test failure
+        WebDriver driver = baseTest.getDriver();  // Get driver from your BaseTest class
+        if (driver != null) {
+            String methodName = result.getMethod().getMethodName();
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            String screenshotName = methodName + "_" + timestamp + ".png";
+
+            // Directory for screenshots: test-output/screenshots/
+            String screenshotDir = System.getProperty("user.dir") + "/test-output/screenshots/";
+            File scrDir = new File(screenshotDir);
+            if (!scrDir.exists()) {
+                scrDir.mkdirs();
+            }
+
+            String screenshotPath = "screenshots/" + screenshotName;
+
+            try {
+                File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+                File destFile = new File(screenshotDir + screenshotName);
+                FileUtils.copyFile(srcFile, destFile);
+                screenshotMap.put(getKey(result), screenshotPath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        Throwable t = result.getThrowable();
+        // Log.fail("TEST", "FAIL: " + testName(result), t);
+    }
+
+    @Override
+    public void onTestSkipped(ITestResult result) {
+        Reporter.setCurrentTestResult(result);
+        // Log.info("TEST", "SKIP: " + testName(result));
+    }
+
+    @Override
+    public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+        if (method.isTestMethod()) {
+            // Log.debug("METHOD", ">> " + methodName(method));
+        }
+    }
+
+    @Override
+    public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+        if (method.isTestMethod()) {
+            // Log.debug("METHOD", "<< " + methodName(method) + " (status=" + status(testResult) + ")");
+        }
+    }
+
+    private String testName(ITestResult r) {
+        return r.getTestClass().getName() + "#" + r.getMethod().getMethodName();
+    }
+
+    private String methodName(IInvokedMethod m) {
+        return m.getTestMethod().getTestClass().getName() + "#" + m.getTestMethod().getMethodName();
+    }
+
+    private String status(ITestResult r) {
+        switch (r.getStatus()) {
+            case ITestResult.SUCCESS:
+                return "PASS";
+            case ITestResult.FAILURE:
+                return "FAIL";
+            case ITestResult.SKIP:
+                return "SKIP";
+            default:
+                return String.valueOf(r.getStatus());
+        }
+    }
+
+    // To be called by Reporter class to fetch screenshot link/path
+    public static String getScreenshotPath(ITestResult result) {
+        return screenshotMap.get(getKey(result));
+    }
+
+    private static String getKey(ITestResult result) {
+        return result.getTestClass().getName() + "." + result.getMethod().getMethodName();
+    }
+}

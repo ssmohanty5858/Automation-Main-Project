@@ -1,0 +1,204 @@
+package POM;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.testng.Assert;
+
+public class Tasks {
+	
+	int rdmnumber = (int) (Math.random() * 1000);
+
+	@FindBy(xpath = "//div[@class='menu-item mi-tasks']")
+	private WebElement taskmodule;
+
+	@FindBy(xpath = "//a[.=' Add task ']")
+	private WebElement addtask;
+
+	@FindBy(xpath = "//input[@formcontrolname='taskLogTitle']")
+	private WebElement tasktitle;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='delegatedTo']")
+	private WebElement delegatetodd;
+
+	@FindBy(xpath = "//input[@placeholder='Search...']")
+	private WebElement searchbardelegateto;
+
+	@FindBy(xpath = "(//a[@class='dropdown-item'])[3]")
+	private WebElement firstelementdelegateto;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='taskLogMedium']")
+	private WebElement taskmediumdd;
+
+	@FindBy(xpath = "//a[contains(text(),'Whatsapp')]")
+	private WebElement whatsapp;
+
+	@FindBy(xpath = "//input[@formcontrolname='scheduledDateTime']")
+	private WebElement scheduledate;
+
+	@FindBy(xpath = "//span[.='29']")
+	private WebElement novdate;
+
+	@FindBy(xpath = "//span[.='Set']")
+	private WebElement setbutton;
+
+	@FindBy(xpath = "//app-eva-dropdown[@labelname='opportunityName']")
+	private WebElement oppnamedd;
+
+	@FindBy(xpath = "//a[contains(text(),'ABC bunglow')]")
+	private WebElement firstelement;
+
+	@FindBy(xpath = "//button[.='Save']")
+	private WebElement savebutton;
+
+	@FindBy(xpath = "//a[.='Pending']")
+	private WebElement pendingclassification;
+
+	@FindBy(xpath = "//a[.='Upcoming']")
+	private WebElement upcomingclassification;
+
+	@FindBy(xpath = "//a[.='Completed']")
+	private WebElement completedclassification;
+
+	@FindBy(xpath = "//span[@ngbtooltip='Sort']")
+	private WebElement sortbutton;
+
+	@FindBy(xpath = "//a[.='Task title: Z to A']")
+	private WebElement ztoa;
+
+	@FindBy(xpath = "//a[.='Task title: A to Z']")
+	private WebElement atoz;
+
+	@FindBy(xpath = "//a[.='Opportunity name: A to Z']")
+	private WebElement onatoz;
+
+	@FindBy(xpath = "//a[.='Opportunity name: Z to A']")
+	private WebElement onztoa;
+
+	@FindBy(xpath = "//a[.='Contact name: A to Z']")
+	private WebElement cnatoz;
+
+	@FindBy(xpath = "//a[.='Contact name: Z to A']")
+	private WebElement cnztoa;
+
+	@FindBy(xpath = "//span[@ngbtooltip='Filter']")
+	private WebElement filterbutton;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='user']")
+	private WebElement managedbydd;
+
+	@FindBy(xpath = "//a[contains(text(),'Amaresh Dash')]")
+	private WebElement amareshdash;
+
+	@FindBy(xpath = "//button[.='Apply']")
+	private WebElement applybutton;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[1]")
+	private WebElement actionbutton;
+
+	@FindBy(xpath = "(//a[.=' Edit '])[1]")
+	private WebElement editbutton;
+
+	@FindBy(xpath = "(//a[.=' Delete '])[1]")
+	private WebElement deletebutton;
+
+	@FindBy(xpath = "//button[.='Delete']")
+	private WebElement deleteconfirmation;
+
+	@FindBy(xpath = "//button[@class='close']")
+	private WebElement closebutton;
+
+	@FindBy(xpath = "//div[@role='alertdialog']")
+	private WebElement alertmessage;
+
+	public Tasks(WebDriver driver) 
+	{
+		PageFactory.initElements(driver, this);
+	}
+
+	public void taskmodal() throws InterruptedException 
+	{
+		taskmodule.click();
+		
+		addtask.click();
+
+		tasktitle.sendKeys("SSM Auto" +rdmnumber);
+
+		delegatetodd.click();
+
+		firstelementdelegateto.click();
+		
+		taskmediumdd.click();
+
+		whatsapp.click();
+
+		scheduledate.click();
+		Thread.sleep(2000);
+		novdate.click();
+		Thread.sleep(2000);
+		setbutton.click();
+		Thread.sleep(3000);
+		oppnamedd.click();
+		Thread.sleep(2000);
+		firstelement.click();
+
+		savebutton.click();
+
+	}
+
+	public void taskpage() throws InterruptedException 
+	{
+		completedclassification.click();
+
+		actionbutton.click();
+
+		editbutton.click();
+	
+		tasktitle.clear();
+		tasktitle.sendKeys("SSM Automation Edit"+rdmnumber);
+		// deletebutton.click();
+		// deleteconfirmation.click();
+		Thread.sleep(2000);
+		savebutton.click();
+		// closebutton.click();
+
+		sortbutton.click();
+
+		ztoa.click();
+	
+		sortbutton.click();
+		atoz.click();
+	
+		sortbutton.click();
+		onatoz.click();
+	
+		sortbutton.click();
+	
+		onztoa.click();
+	
+		sortbutton.click();
+		
+		cnatoz.click();
+	
+		sortbutton.click();
+	
+		cnztoa.click();
+	
+		filterbutton.click();
+
+		managedbydd.click();
+	
+		amareshdash.click();
+	
+		applybutton.click();
+	}
+
+	public void alertconfirmation() 
+	{
+		String actualmsg = alertmessage.getText();
+		String expectedmsg = "Data saved successfully";
+		Assert.assertEquals(actualmsg, expectedmsg);
+		System.out.println(actualmsg);
+	}
+}

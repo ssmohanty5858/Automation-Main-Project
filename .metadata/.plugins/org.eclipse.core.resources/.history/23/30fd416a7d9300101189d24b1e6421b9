@@ -1,0 +1,290 @@
+package POM;
+
+import util.UIActions;
+
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.Date;
+import java.util.List;
+import java.util.function.Consumer;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.*;
+import org.openqa.selenium.support.ui.*;
+
+public class AccountAddNew {
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final UIActions ui;
+
+  
+
+    int rdmnumber = (int) (Math.random() * 1000);
+    Date date = new Date();
+    SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+    String formattedDate = sdf.format(date);
+
+    @FindBy(xpath="(//div[@routerlinkactive='active'])[2]")
+    private WebElement accounttab;
+
+    private static final By ADD_ACCOUNT = By.xpath("//a[normalize-space()='Add account']");
+    private static final By ACTION_BUTTON = By.xpath("(//div[contains(@class,'cursor-pointer') and contains(@class,'rotate')])[2]");
+    private static final By REMARK = By.xpath("//textarea[@type='text']");
+    private static final By ACCOUNT_TAGS_HDR =
+            By.xpath("//*[normalize-space()='Account tags']");
+
+    private static final By ACCOUNT_TAGS_DROPDOWNS =
+            By.xpath("(//*[normalize-space()='Account tags']/following::div[@data-bs-toggle='dropdown']" +
+                     "[following::button[normalize-space()='Create']])");
+
+    private static final By OPEN_MENU =
+            By.cssSelector(".dropdown-menu.show, .show .dropdown-menu");
+    private static final By OPEN_MENU_OPTIONS =
+            By.xpath("//*[contains(@class,'dropdown-menu') and contains(@class,'show')]//a[contains(@class,'dropdown-item')]");
+
+    @FindBy(xpath="(//input[@type='text'])[1]")
+    private WebElement accountname;
+
+    @FindBy(xpath="(//input[@type='text'])[3]")
+    private WebElement phonenumber;
+
+    @FindBy(xpath="(//input[@type='text'])[4]")
+    private WebElement emailid;
+
+    @FindBy(xpath="(//input[@type='text'])[6]")
+    private WebElement website;
+
+    @FindBy(xpath="(//input[@type='text'])[7]")
+    private WebElement externalaccountcode;
+
+    @FindBy(xpath="(//input[@type='text'])[8]")
+    private WebElement address1;
+
+    @FindBy(xpath="(//input[@type='text'])[9]")
+    private WebElement address2;
+
+    @FindBy(xpath="(//input[@type='text'])[10]")
+    private WebElement pincode;
+
+    @FindBy(xpath="//button[contains(text(),'Create')]")
+    private WebElement createaccountbutton;
+
+    @FindBy(xpath="//a[.='Edit']")
+    private WebElement editaccountbutton;
+
+    @FindBy(xpath="//button[contains(text(),'Update')]")
+    private WebElement updataccount;
+
+    @FindBy(xpath="//a[.='Transfer Account']")
+    private WebElement transferaccountbutton;
+
+    @FindBy(xpath="//button[.='Save']")
+    private WebElement savetransferaccount;
+
+    @FindBy(xpath="//a[.='Delete']")
+    private WebElement deleteaccount;
+
+    @FindBy(xpath="//button[.='Delete']")
+    private WebElement deleteconfirmbutton;
+
+    @FindBy(xpath="//input[@placeholder='Search']")
+    private WebElement searchtextfield;
+
+    @FindBy(xpath="//div[@class='sort-by']")
+    private WebElement sortby;
+
+    @FindBy(xpath="//a[.='Account Name: A to Z']")
+    private WebElement accnameatoz;
+
+    @FindBy(xpath="//a[.='City: Z to A']")
+    private WebElement cityztoa;
+
+    public AccountAddNew(WebDriver driver) {
+        this.driver = driver;
+		
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+		this.ui = new UIActions(driver);
+
+        PageFactory.initElements(driver, this);
+    }
+
+    // ---------- your existing public methods (unchanged names) ----------
+    public void NewAccAdd() {
+    	 
+        ui.click(accounttab, "Open Accounts tab");
+
+        wait.until(ExpectedConditions.urlContains("/qms/account"));
+        ui.click(ADD_ACCOUNT, "Add account");
+
+        ui.type(accountname, "SSM Automation" + rdmnumber + formattedDate, "Account Name");
+        ui.type(phonenumber, "147852360" + rdmnumber, "Phone");
+        ui.type(emailid, "test@" + rdmnumber, "Email");
+        ui.type(website, "www.eva.com", "Website");
+        ui.type(externalaccountcode, "123abcd" + rdmnumber, "Ext code");
+
+        WebElement remarkNow = ui.visible(REMARK, "Remark");
+        ui.type(remarkNow, "Test" + formattedDate, "Remark");
+
+        ui.type(address1, "laxmisagar", "Address1");
+        ui.type(address2, "unique plaza", "Address2");
+        ui.type(pincode, "754582", "Pincode");
+
+        // Select the first city from the drop down
+        selectFirstFromLazySelect("City");
+        selectFirstFromLazySelect("City");
+        
+        //Select the first element of the tags
+        fillAllAccountTagsDropdowns();
+
+        ui.click(createaccountbutton, "Create account");
+
+        wait.until(ExpectedConditions.or(
+            ExpectedConditions.urlContains("/qms/account"),
+            ExpectedConditions.presenceOfElementLocated(By.cssSelector("app-root"))
+        ));
+    }
+
+    //Account page- Update Account 
+    
+    public void editAccount() {
+        ui.click(ACTION_BUTTON, "Open action menu");
+        ui.click(editaccountbutton, "Edit account");
+
+        WebElement remarkEdit = ui.visible(REMARK, "Remark (edit)");
+        remarkEdit.clear();
+        ui.type(remarkEdit, "Edit Account" + rdmnumber + formattedDate, "Remark");
+
+        ui.click(updataccount, "Update account");
+    }
+    
+  //Account page- Transfer Account 
+    
+    public void transferAccount() throws InterruptedException {
+    	Thread.sleep(1000);
+        ui.click(ACTION_BUTTON, "Action -> Transfer");
+        ui.click(transferaccountbutton, "Transfer Account");
+        ui.click(savetransferaccount, "Save transfer");
+    }
+    
+    //Account page- Delete Account
+    
+    public void deleteAccount() throws InterruptedException
+    {
+        Thread.sleep(1000);
+        ui.click(ACTION_BUTTON, "Action -> Delete");
+        ui.click(deleteaccount, "Delete account");
+        ui.click(deleteconfirmbutton, "Confirm delete");
+    }
+    
+    //Account page- Search/Sort Account
+    
+    public void searchTextField()
+    {
+        WebElement sb = ui.visible(searchtextfield, "Focus search");
+        sb.sendKeys("SSM Auto", Keys.ENTER);
+        sb.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+        sb.sendKeys(Keys.DELETE);
+        sb.sendKeys(Keys.ENTER);
+
+        ui.click(sortby, "Sort by");
+        ui.click(accnameatoz, "Sort: Account Name A->Z");
+
+        ui.click(sortby, "Sort by");
+        ui.click(cityztoa, "Sort: City Z->A");
+    }
+    
+    /** Opens an <input data-bs-toggle="dropdown"> by id and clicks the first option. */
+    public boolean selectFirstFromLazySelect(String inputId) {
+        By trigger = By.xpath("//input[@id='" + inputId + "' and @data-bs-toggle='dropdown']");
+        By menu    = By.cssSelector(".dropdown-menu.show, .show .dropdown-menu");
+        By options = By.xpath("//*[contains(@class,'dropdown-menu') and contains(@class,'show')]//a[contains(@class,'dropdown-item')]");
+
+        int attempts = 0;
+        while (attempts++ < 3) {
+            try {
+                WebElement input = wait.until(ExpectedConditions.elementToBeClickable(trigger));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", input);
+                input.click();
+
+                wait.until(ExpectedConditions.presenceOfElementLocated(menu));
+                wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(options, 0));
+
+                List<WebElement> opts = driver.findElements(options);
+                WebElement first = null;
+                for (WebElement op : opts) {
+                    String t = op.getText() == null ? "" : op.getText().trim();
+                    if (!t.isEmpty()) { first = op; break; }
+                }
+                if (first == null) first = opts.get(0);
+
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", first);
+                try {
+                    wait.until(ExpectedConditions.elementToBeClickable(first)).click();
+                } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", first);
+                }
+
+                try {
+                    wait.until(ExpectedConditions.invisibilityOfElementLocated(menu));
+                } catch (TimeoutException ignored) {
+                    input.sendKeys(Keys.ESCAPE);
+                }
+                return true;
+
+            } catch (StaleElementReferenceException | TimeoutException e) {
+                try { driver.switchTo().defaultContent(); } catch (Exception ignored) {}
+            }
+        }
+        return false;
+    }
+    
+    // =================== Account tags helpers ===================
+
+    /** Selects the FIRST option in every dropdown under the "Account tags" section. */
+    public void fillAllAccountTagsDropdowns() {
+        if (driver.findElements(ACCOUNT_TAGS_HDR).isEmpty()) {
+           
+            return;
+        }
+
+        List<WebElement> controls = driver.findElements(ACCOUNT_TAGS_DROPDOWNS);
+    
+
+        for (int i = 0; i < controls.size(); i++) {
+            try {
+                WebElement box = driver.findElements(ACCOUNT_TAGS_DROPDOWNS).get(i);
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", box);
+                wait.until(ExpectedConditions.elementToBeClickable(box)).click();
+                selectFirstFromOpenMenu();
+            } catch (StaleElementReferenceException se) {
+                try {
+                    WebElement box = driver.findElements(ACCOUNT_TAGS_DROPDOWNS).get(i);
+                    wait.until(ExpectedConditions.elementToBeClickable(box)).click();
+                    selectFirstFromOpenMenu();
+                } catch (Exception ignore) {}
+            } catch (Exception e) {
+               
+            }
+        }
+    }
+    /** Clicks the first non-empty option in the currently open Bootstrap dropdown menu. */
+    private void selectFirstFromOpenMenu() {
+        WebElement menu = wait.until(ExpectedConditions.presenceOfElementLocated(OPEN_MENU));
+        List<WebElement> options = wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(OPEN_MENU_OPTIONS));
+        if (options.isEmpty()) throw new NoSuchElementException("No options in open dropdown.");
+
+        WebElement first = null;
+        for (WebElement op : options) {
+            String t = op.getText() == null ? "" : op.getText().trim();
+            if (!t.isEmpty()) { first = op; break; }
+        }
+        if (first == null) first = options.get(0);
+
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", first);
+        try {
+            wait.until(ExpectedConditions.elementToBeClickable(first)).click();
+        } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", first);
+        }
+    }
+}

@@ -1,0 +1,358 @@
+package util;
+
+import org.testng.IReporter;
+import org.testng.ISuite;
+import org.testng.ISuiteResult;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.xml.XmlSuite;
+
+import listeners.ReportingListener;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
+
+public class EmailableReportWithFailures implements IReporter {
+
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory) {
+        try (BufferedWriter w = new BufferedWriter(new FileWriter(outputDirectory + "/failures-report.html"))) {
+            writeHeader(w);
+
+            for (ISuite suite : suites) {
+                w.write("<h2>Suite: " + esc(suite.getName()) + "</h2>");
+
+                Map<ITestContext, List<ITestResult>> failuresGrouped = new LinkedHashMap<>();
+
+                for (ISuiteResult result : suite.getResults().values()) {
+                    ITestContext ctx = result.getTestContext();
+                    Set<ITestResult> failedTests = ctx.getFailedTests().getAllResults();
+                    if (!failedTests.isEmpty()) {
+                        failuresGrouped.put(ctx, new ArrayList<>(failedTests));
+                    }
+                }
+
+                for (Map.Entry<ITestContext, List<ITestResult>> entry : failuresGrouped.entrySet()) {
+                    ITestContext ctx = entry.getKey();
+                    List<ITestResult> failedResults = entry.getValue();
+
+                    writeContextTable(w, ctx);
+                    writeSummaryCards(w, ctx);
+                    writeFailureTable(w, failedResults);
+                }
+            }
+
+            writeFooter(w);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void writeHeader(BufferedWriter w) throws IOException {
+        w.write("<html><head><title>Automation Test Failure Report</title>");
+        w.write("<meta charset='utf-8' />");
+        w.write("<style>");
+        w.write("body{font-family:Segoe UI,system-ui,Arial,sans-serif;margin:18px;color:#0f172a;background:#fafafa;}");
+        w.write(".kpi{display:grid;grid-template-columns:repeat(8,1fr);gap:12px;margin:10px 0 18px;}");
+        w.write(".card{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:12px;text-align:center;}");
+        w.write(".num{font-weight:700;font-size:20px;}");
+        w.write(".bad-b{background:#fef2f2;border-color:#fecaca;}");
+        w.write("table{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.04);}");
+        w.write("th,td{border:1px solid #e6e6e6;padding:10px;vertical-align:top;font-size:14px;}");
+        w.write("th{background:#f4f6f8;text-transform:uppercase;font-size:12px;letter-spacing:.04em;color:#334155;}");
+        w.write(".muted{color:#64748b;}");
+        w.write(".collapsible{background:#f1f5f9;border:1px solid #e5e7eb;border-radius:6px;padding:6px;cursor:pointer;}");
+        w.write(".collapsible:after{content:'▼';font-size:10px;float:right;}");
+        w.write(".content{padding:8px 10px;border-top:1px dashed #e5e7eb;display:none;}");
+        w.write("tr:nth-child(even){background:#f9f9f9;}");
+        w.write("</style>");
+        w.write("<script>function toggle(id){var el=document.getElementById(id);el.style.display=el.style.display=='block'?'none':'block';}</script>");
+        w.write("</head><body>");
+        w.write("<h1>Automation Test Failure Report</h1>");
+        w.write("<div class='muted'>Generated: " + new Date() + "</div>");
+    }
+
+    private void writeFooter(BufferedWriter w) throws IOException {
+        w.write("</body></html>");
+    }
+
+    private void writeContextTable(BufferedWriter w, ITestContext ctx) throws IOException {
+        w.write("<h3>Test: " + esc(ctx.getName()) + "</h3>");
+    }
+
+    private void writeSummaryCards(BufferedWriter w, ITestContext ctx) throws IOException {
+        //int total = ctx.getAllTestMethods().length;
+        //int passed = ctx.getPassedTests().size();
+        int failed = ctx.getFailedTests().size();
+        //int skipped = ctx.getSkippedTests().size();
+        long duration = ctx.getEndDate().getTime() - ctx.getStartDate().getTime();
+
+        w.write("<div class='kpi'>");
+       // w.write("<div class='card num'>Total<br>" + total + "</div>");
+       // w.write("<div class='card num' style='background:#ecfdf5; border-color:#a7f3d0;'>Passed<br>" + passed + "</div>");
+        w.write("<div class='card num bad-b'>Failed<br>" + failed + "</div>");
+        //w.write("<div class='card num'>Skipped<br>" + skipped + "</div>");
+        w.write("<div class='card num'>Duration (ms)<br>" + duration + "</div>");
+        w.write("</div>");
+    }
+
+    private void writeFailureTable(BufferedWriter w, List<ITestResult> failedResults) throws IOException {
+    	w.write("<table><thead><tr>");
+    	w.write("<th>#</th><th>Class</th><th>Method</th>");
+    	w.write("<th>Error</th><th>Screenshot</th><th>Network Calls</th>");
+    	w.write("</tr></thead><tbody>");
+
+
+        int idx = 1;
+        for (ITestResult r : failedResults) {
+        	String logsId = "logs" + idx;
+        	String errorId = "err" + idx;
+        	String screenshotId = "screenshot" + idx;
+        	String networkId = "network" + idx;
+
+        	w.write("<tr>");
+        	w.write("<td>" + idx + "</td>");
+        	w.write("<td>" + esc(r.getTestClass().getName()) + "</td>");
+        	w.write("<td>" + esc(r.getMethod().getMethodName()) + "</td>");
+//        	w.write("<td style='color:red;font-weight:bold;'>Failed</td>");
+//        	w.write("<td>" + new Date(r.getStartMillis()) + "</td>");
+//        	w.write("<td>" + new Date(r.getEndMillis()) + "</td>");
+//        	w.write("<td>" + (r.getEndMillis() - r.getStartMillis()) + "</td>");
+//
+//        	// Logs
+//        	w.write("<td><div class='collapsible' onclick='toggle(\"" + logsId + "\")'>Logs(click to expand/collapse)</div>");
+//        	w.write("<div class='content' id='" + logsId + "'>" + esc(getLogs(r)) + "</div></td>");
+
+        	// Error
+        	w.write("<td><div class='collapsible bad-b' onclick='toggle(\"" + errorId + "\")'>View error (click to expand/collapse)</div>");
+        	w.write("<div class='content' id='" + errorId + "'>" + getCompactErrorHtml(r) + "</div></td>");
+      
+        	// Screenshot
+        	w.write("<td><div class='collapsible' onclick='toggle(\"" + screenshotId + "\")'>Screenshot (click to expand/collapse)</div>");
+        	w.write("<div class='content' id='" + screenshotId + "'>" + getScreenshotHtml(r) + "</div></td>");
+
+        	// Network Calls (last)
+        	w.write("<td><div class='collapsible bad-b' onclick='toggle(\"" + networkId + "\")'>View failed API calls (click to expand/collapse)</div>");
+        	w.write("<div class='content' id='" + networkId + "'>" + getNetworkCallsHtml(r) + "</div></td>");
+
+        	w.write("</tr>");
+        	idx++;
+        }
+        w.write("</tbody></table>");
+    }
+
+    private String esc(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private String getLogs(ITestResult r) {
+        // Connect your Log class or data here
+        return "Logs not implemented";
+    }
+
+    private String getErrorMessage(ITestResult r) {
+        Throwable t = r.getThrowable();
+        if (t == null) return "No error.";
+        return esc(t.toString() + "<br/>" + t.getMessage());
+    }
+
+    private String getScreenshotHtml(ITestResult r) {
+        String path = ReportingListener.getScreenshotPath(r);
+        if (path == null || path.isEmpty()) {
+            return "No screenshot available";
+        }
+        return "<a href='" + esc(path) + "' target='_blank' rel='noopener noreferrer'>View Screenshot</a>";
+    }
+    
+    
+    
+    
+
+ // Build compact HTML table for failed network calls (Status + URL) without assuming recorder APIs
+    private String getNetworkCallsHtml(ITestResult r) {
+        java.util.List<?> rows = getRecorderRowsForTest(r);
+        if (rows == null || rows.isEmpty()) {
+            return "No failure network/API calls recorded";
+        }
+
+        java.util.List<Object[]> failed = new java.util.ArrayList<>();
+        for (Object row : rows) {
+            int status = readInt(row, "getStatus", "status");
+            if (status >= 400) {
+                String url = readString(row, "getUrl", "url");
+                failed.add(new Object[]{status, url});
+            }
+        }
+        if (failed.isEmpty()) {
+            return "No failure network/API calls recorded";
+        }
+
+        StringBuilder sb = new StringBuilder(256 + failed.size() * 128);
+        sb.append("<table style='width:100%;border-collapse:collapse;background:#fff;'>")
+          .append("<thead><tr>")
+          .append("<th style='border:1px solid #e6e6e6;padding:6px;text-align:left;'>Status</th>")
+          .append("<th style='border:1px solid #e6e6e6;padding:6px;text-align:left;'>URL</th>")
+          .append("</tr></thead><tbody>");
+        for (Object[] f : failed) {
+            sb.append("<tr>")
+              .append(td(String.valueOf(f[0])))
+              .append(td(esc((String) f[1])))
+              .append("</tr>");
+        }
+        sb.append("</tbody></table>");
+        return sb.toString();
+    }
+
+    // Locate NetworkConsoleRecorder's per-test storage via reflection and return the rows for this test
+    private java.util.List<?> getRecorderRowsForTest(ITestResult r) {
+        try {
+            Class<?> recClazz = Class.forName("util.NetworkConsoleRecorder");
+            // Build the same key pattern your report/recorder uses: ClassName.MethodName
+            String key = r.getTestClass().getName() + "." + r.getMethod().getMethodName();
+
+            // Heuristic 1: try a static Map<String, List<?>> called perTestRecords
+            try {
+                java.lang.reflect.Field f = recClazz.getDeclaredField("perTestRecords");
+                f.setAccessible(true);
+                Object mapObj = f.get(null);
+                if (mapObj instanceof java.util.Map) {
+                    @SuppressWarnings("unchecked")
+                    java.util.Map<String, ?> map = (java.util.Map<String, ?>) mapObj;
+                    Object list = map.get(key);
+                    if (list instanceof java.util.List) {
+                        return (java.util.List<?>) list;
+                    }
+                }
+            } catch (NoSuchFieldException ignore) {
+                // continue to next heuristics
+            }
+
+            // Heuristic 2: try a static getter like getPerTestRecords()
+            try {
+                java.lang.reflect.Method m = recClazz.getMethod("getPerTestRecords");
+                Object mapObj = m.invoke(null);
+                if (mapObj instanceof java.util.Map) {
+                    @SuppressWarnings("unchecked")
+                    java.util.Map<String, ?> map = (java.util.Map<String, ?>) mapObj;
+                    Object list = map.get(key);
+                    if (list instanceof java.util.List) {
+                        return (java.util.List<?>) list;
+                    }
+                }
+            } catch (NoSuchMethodException ignore) {
+                // continue
+            }
+
+            // Heuristic 3: try a method that directly returns rows for a key: getRowsForTest(String key)
+            try {
+                java.lang.reflect.Method m = recClazz.getMethod("getRowsForTest", String.class);
+                Object list = m.invoke(null, key);
+                if (list instanceof java.util.List) {
+                    return (java.util.List<?>) list;
+                }
+            } catch (NoSuchMethodException ignore) {
+                // no API, return null
+            }
+        } catch (ClassNotFoundException e) {
+            // recorder not on classpath
+        } catch (Exception e) {
+            // ignore and fallback
+        }
+        return null;
+    }
+
+    // Reflection field/getter readers (status/url) that match how the recorder renders columns
+    private int readInt(Object bean, String getter, String field) {
+        try { return ((Number) bean.getClass().getMethod(getter).invoke(bean)).intValue(); } catch (Exception ignore) {}
+        try { java.lang.reflect.Field f = bean.getClass().getField(field); f.setAccessible(true);
+              return ((Number) f.get(bean)).intValue(); } catch (Exception ignore) {}
+        return -1;
+    }
+    private String readString(Object bean, String getter, String field) {
+        try { Object v = bean.getClass().getMethod(getter).invoke(bean); return v == null ? "" : String.valueOf(v); } catch (Exception ignore) {}
+        try { java.lang.reflect.Field f = bean.getClass().getField(field); f.setAccessible(true);
+              Object v = f.get(bean); return v == null ? "" : String.valueOf(v); } catch (Exception ignore) {}
+        return "";
+    }
+    private String td(String v) {
+        return "<td style='border:1px solid #e6e6e6;padding:6px;vertical-align:top;'>" + v + "</td>";
+    }
+    
+    
+    
+    
+ // Summarize failure: Exception, XPath (if any), and last human log line
+    private String getCompactErrorHtml(ITestResult r) {
+        String exceptionLine = summarizeException(r.getThrowable());
+        String xpath = extractFirstXpath(r.getThrowable());
+        String lastLog = lastHumanLogLine(r); // uses TestNG Reporter logs
+
+        StringBuilder sb = new StringBuilder(256);
+        if (!exceptionLine.isEmpty()) {
+            sb.append("<div><b>Exception:</b> ").append(esc(exceptionLine)).append("</div>");
+        }
+        if (!lastLog.isEmpty()) {
+            sb.append("<div><b>Message:</b> ").append(esc(lastLog)).append("</div>");
+        }
+        if (sb.length() == 0) return "No concise error available";
+        return sb.toString();
+    }
+
+    private String summarizeException(Throwable t) {
+        if (t == null) return "";
+        // Example: org.openqa.selenium.NoSuchElementException: Unable to locate element
+        String msg = t.toString();
+        int nl = msg.indexOf('\n');
+        String first = nl > 0 ? msg.substring(0, nl) : msg;
+        // Trim after the first “Build info:” or “(Session info:” tokens if present
+        first = first.replaceAll("\\s*Build info:.*$", "")
+                     .replaceAll("\\s*\\(Session info:.*$", "");
+        return first.trim();
+    }
+
+    private String extractFirstXpath(Throwable t) {
+        if (t == null) return "";
+        String s = t.toString();
+        // Try a few common patterns
+        java.util.regex.Pattern[] ps = new java.util.regex.Pattern[] {
+            java.util.regex.Pattern.compile("By\\.xpath:\\s*\\(([^)]*)\\)"),
+            java.util.regex.Pattern.compile("By\\.xpath:\\s*([^\\n]+)"),
+            java.util.regex.Pattern.compile("selector['\"]:\\s*['\"](//[^'\"\\n]+)['\"]"),
+            java.util.regex.Pattern.compile("(?i)xpath['\"]?\\s*[:=]\\s*['\"](//[^'\"\\n]+)['\"]")
+        };
+        for (java.util.regex.Pattern p : ps) {
+            java.util.regex.Matcher m = p.matcher(s);
+            if (m.find()) {
+                String g = m.groupCount() >= 1 ? m.group(1) : m.group(0);
+                return g == null ? "" : g.trim();
+            }
+        }
+        return "";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String lastHumanLogLine(ITestResult r) {
+        // Pull TestNG Reporter logs that your report already shows
+        java.util.List<String> logs = org.testng.Reporter.getOutput(r);
+        if (logs == null || logs.isEmpty()) return "";
+        // Heuristic: pick the last non-empty, non-HTML-ish line
+        for (int i = logs.size() - 1; i >= 0; i--) {
+            String line = stripHtml(logs.get(i)).trim();
+            if (!line.isEmpty()) {
+                return line;
+            }
+        }
+        return "";
+    }
+
+    private String stripHtml(String s) {
+        if (s == null) return "";
+        // remove typical HTML tags your logger may have wrapped
+        return s.replaceAll("<[^>]+>", "");
+    }
+
+
+}

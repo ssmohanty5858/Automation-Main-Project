@@ -1,0 +1,148 @@
+package POM;
+
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.testng.Assert;
+
+public class PaymentReceived 
+{
+	@FindBy(xpath = "//li[@tooltip='Payment received']")
+	private WebElement paymentreceivedmodule;
+
+	@FindBy(xpath = "//button[.='Add payment']")
+	private WebElement addpaymentbutton;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[1]")
+	private WebElement opportunitydd;
+
+	@FindBy(xpath = "(//a[@class='dropdown-item'])[7]")
+	private WebElement samirtest;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[2]")
+	private WebElement paymentmedium;
+
+	@FindBy(xpath = "//a[contains(text(),'CREDIT CARD')]")
+	private WebElement ssmtestupi;
+
+	@FindBy(xpath = "//input[@formcontrolname='paymentCode']")
+	private WebElement transactionnotextfield;
+
+	@FindBy(xpath = "//input[@formcontrolname='paymentValue']")
+	private WebElement amounttextfield;
+
+	@FindBy(xpath = "//input[@formcontrolname='paymentDateTime']")
+	private WebElement calendericon;
+
+	@FindBy(xpath = "//span[.='17']")
+	private WebElement novseventeen;
+
+	@FindBy(xpath = "//span[.='Set']")
+	private WebElement setbutton;
+
+	@FindBy(xpath = "//button[.='Add']")
+	private WebElement addbutton;
+
+	@FindBy(xpath = "//button[@class='close pull-right']")
+	private WebElement closesymbol;
+
+	@FindBy(xpath = "//span[@ngbtooltip='Sort']")
+	private WebElement sort;
+
+	@FindBy(xpath = "//a[.='Transaction date: Z to A']")
+	private WebElement ztoa;
+
+	@FindBy(xpath = "//input[@placeholder='Search...']")
+	private WebElement searchbar;
+
+	@FindBy(xpath = "//span[@ngbtooltip='Refresh']")
+	private WebElement refreshicon;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[1]")
+	private WebElement action;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[2]")
+	private WebElement action2;
+
+	@FindBy(xpath = "(//a[.='Audit payment'])[1]")
+	private WebElement auditpayment;
+
+	@FindBy(xpath = "(//input[@name='auditStatus'])[1]")
+	private WebElement approvebutton;
+
+	@FindBy(xpath = "//textarea[@formcontrolname='paymentAuditRemarks']")
+	private WebElement reasontextfield;
+
+	@FindBy(xpath = "//button[.='Submit']")
+	private WebElement submitbutton;
+
+	@FindBy(xpath = "//div[@role='alertdialog']")
+	private WebElement alertmessage;
+
+	public PaymentReceived(WebDriver driver) {
+		PageFactory.initElements(driver, this);
+	}
+
+	public void mediumpayment() throws InterruptedException
+	{
+		int rdmnumber = (int) (Math.random() * 1000);
+		
+		paymentreceivedmodule.click();
+		
+		addpaymentbutton.click();
+		Thread.sleep(2000);
+		closesymbol.click();
+		Thread.sleep(2000);
+		addpaymentbutton.click();
+		Thread.sleep(1000);
+		opportunitydd.click();
+		Thread.sleep(2000);
+		samirtest.click();
+
+		paymentmedium.click();
+	
+		ssmtestupi.click();
+		
+		transactionnotextfield.sendKeys("664" + rdmnumber);
+		
+		amounttextfield.sendKeys("100000");
+		
+		calendericon.click();
+	
+		novseventeen.click();
+		Thread.sleep(1000);
+		setbutton.click();
+	
+		addbutton.click();
+	
+		sort.click();
+	
+		ztoa.click();
+	
+		searchbar.sendKeys("SSM");
+		
+		searchbar.sendKeys(Keys.ENTER);
+
+		refreshicon.click();
+		Thread.sleep(1000);
+		action.click();
+	
+		auditpayment.click();
+	
+		approvebutton.click();
+
+		reasontextfield.sendKeys("Payment credited");
+		Thread.sleep(1000);
+		submitbutton.click();
+	}
+
+	public void alertconfirmation() {
+		String actualmsg = alertmessage.getText();
+		String expectedmsg = "Data saved successfully";
+		Assert.assertEquals(actualmsg, expectedmsg);
+		System.out.println(actualmsg);
+	}
+
+}

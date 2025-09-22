@@ -1,0 +1,73 @@
+package Test;
+
+import java.awt.AWTException;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+
+import org.openqa.selenium.devtools.v139.media.model.Timestamp;
+import org.testng.annotations.Test;
+import POM.ConfiguratorTesting;
+import POM.LoginSapphire;
+
+public class CreateDesign extends baseTest {
+
+    @Test
+    public void createNewDesigns() throws InterruptedException, AWTException, IOException {
+        driver.get(baseUrl);
+        new LoginSapphire(driver).login(username, password);
+        driver.get("https://evaerp.cloud/qms/process-new/790077/728520/1");
+        ConfiguratorTesting ecp = new ConfiguratorTesting(driver);
+
+       // ecp.openQuotesPage();
+       // ecp.mouseHoverToRevealView();
+
+        //Design1
+//        ecp.newDesignCreate("twotrack2s" + LocalTime.now().getHour() + " " + LocalTime.now().getMinute() + " " +  LocalTime.now().getSecond());
+//        ecp.twoTrackTwoShutter();
+//        ecp.saveDesign();
+//        Thread.sleep(5000);
+//        
+        //Design2
+//        ecp.newDesignCreate("design 2" + LocalTime.now().getHour() + " " + LocalTime.now().getMinute() + " " +  LocalTime.now().getSecond());
+//        ecp.createFixOpenableDesign();
+       // ecp.saveDesign();
+ //       Thread.sleep(2000);
+//////        
+//////        //Design3
+//        ecp.newDesignCreate("design3" + LocalTime.now().getMinute() + " " +  LocalTime.now().getSecond());
+//        ecp.createFanOpenDesign();
+//        ecp.saveDesign();
+//        Thread.sleep(2000);
+////        
+////        //Design4
+        ecp.newDesignCreate("Design " + LocalTime.now().getHour() + "" + LocalTime.now().getMinute() + "" +  LocalTime.now().getSecond());
+        //ecp.createSlidingTopFix();
+        ecp.testingDesignCreation();
+        ecp.saveDesign();
+        Thread.sleep(2000);
+        
+//        ecp.newDesignCreate("design5" + " : " + LocalTime.now().getMinute() + " " +  LocalTime.now().getSecond());
+//        ecp.checkingEndXEndY();
+//        ecp.saveDesign();
+//        Thread.sleep(2000);
+        
+       // ecp.mullionDragFirstToCanvas();
+
+        // -------- Option A: dropdown-based flow (most common) --------
+        //ecp.designsDragByIndex(0, 0.35, 0.35);
+
+        // -------- Option B: docked section flow --------
+        // Uncomment if your app shows the full panel instead of dropdown
+         //ecp.dragFromSection("Tilt & Turn Designs", 2, 0.35, 0.35);
+        // 
+         //ecp.createFixOpenableDesign();
+        //ecp.createFanOpenDesign();
+       // ecp.createSlidingTopFix();
+        
+        //Click on frame
+//        ecp.newDesignCreate("design6" + " : " + LocalTime.now().getMinute() + " " +  LocalTime.now().getSecond());
+        ecp.clickOnFrame();
+       
+    }
+}

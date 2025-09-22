@@ -1,0 +1,887 @@
+package POM;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.Set;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.Select;
+
+public class Plan {
+	static String parentWindow;
+	WebDriver driver;
+	public String childWindowName;
+	public String newWindowTitle;
+
+	int rdmnumber = (int) (Math.random() * 1000);
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+
+	@FindBy(xpath = "(//a[@placement='bottom'])[3]")
+	private WebElement apps;
+
+	@FindBy(xpath = "(//div[@class='col-auto p-1'])[5]")
+	private WebElement planmodule;
+
+	@FindBy(xpath = "//a[contains(text(),'Approved')]")
+	private WebElement approvedclassification;
+
+	@FindBy(xpath = "(//button[.='View'])[3]")
+	private WebElement viewbutton;
+
+	@FindBy(xpath = "(//li[@class='nav-item'])[3]")
+	private WebElement reportstab;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[1]")
+	private WebElement viewelevationreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[2]")
+	private WebElement viewbasicdimensionreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[3]")
+	private WebElement viewtypologycostbreakupreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[4]")
+	private WebElement viewprofileboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[5]")
+	private WebElement viewriboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[6]")
+	private WebElement viewaccessoriesboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[7]")
+	private WebElement viewglassboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[8]")
+	private WebElement viewcuttingschedulereport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[9]")
+	private WebElement viewdesignassemblyreport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[10]")
+	private WebElement viewricuttingschedulereport;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[11]")
+	private WebElement viewinstalltionreport;
+
+	@FindBy(xpath = "(//input[@type='checkbox'])[1]")
+	private WebElement multicheckbox;
+
+	@FindBy(xpath = "//button[contains(text(),'Existing work order')]")
+	private WebElement existingworkordertab;
+
+	@FindBy(xpath = "//input[@data-bs-toggle='dropdown']")
+	private WebElement workorderdd;
+
+	@FindBy(xpath = "//a[contains(text(),'WO-468')]")
+	private WebElement selectworkorder;
+
+	@FindBy(xpath = "//button[.='Allocate']")
+	private WebElement allocatebutton;
+
+	@FindBy(xpath = "(//span[@tooltip='Sort'])[2]")
+	private WebElement sortbutton;
+
+	@FindBy(xpath = "(//a[contains(text(),'Created on A to Z')])[2]")
+	private WebElement createdonatoz;
+
+	@FindBy(xpath = "(//a[contains(text(),'Created on Z to A')])[2]")
+	private WebElement createdonztoa;
+
+	@FindBy(xpath = "(//a[contains(text(),'Factory name A to Z')])[2]")
+	private WebElement factorynameatoz;
+
+	@FindBy(xpath = "(//a[contains(text(),'Factory name Z to A')])[2]")
+	private WebElement factorynameztoa;
+
+	@FindBy(xpath = "(//a[contains(text(),'Work order value A to Z')])[2]")
+	private WebElement workordervalueatoz;
+
+	@FindBy(xpath = "(//a[contains(text(),'Work order value Z to A')])[2]")
+	private WebElement workordervalueztoa;
+
+	@FindBy(xpath = "(//a[.='Sales order area A to Z'])[2]")
+	private WebElement salesorderareaatoz;
+
+	@FindBy(xpath = "(//a[.='Sales order area Z to A'])[2]")
+	private WebElement salesorderareaztoa;
+
+	@FindBy(xpath = "(//span[@tooltip='Refresh'])[2]")
+	private WebElement refreshicon;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[2]")
+	private WebElement searchbartextfield;
+
+	@FindBy(xpath = "(//li[@class='nav-item'])[6]")
+	private WebElement completedclassifications;
+
+	@FindBy(xpath = "//button[@class='close']")
+	private WebElement closebutton;
+
+	public Plan(WebDriver driver) {
+		this.driver = driver;
+		PageFactory.initElements(driver, this);
+	}
+
+	public void plans() throws InterruptedException 
+	{
+		apps.click();
+
+		parentWindow = driver.getWindowHandle();
+		planmodule.click();
+
+		Set<String> windowId = driver.getWindowHandles();
+		Iterator<String> it = windowId.iterator();
+		while (it.hasNext()) {
+			childWindowName = it.next();
+			if (parentWindow != childWindowName) {
+				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+				System.out.println(newWindowTitle);
+			}
+		}
+		Thread.sleep(2000);
+		approvedclassification.click();
+		Thread.sleep(3000);
+		approvedactionbutton.click();
+
+		downloadquote.click();
+//		Thread.sleep(2000);
+//		approvedactionbutton.click();
+////	
+////		changestatus.click();
+////	
+////		statusdd.click();
+////
+////		Select sel=new Select(statusdd);
+////		sel.selectByVisibleText("Completed");
+////		Thread.sleep(2000);
+////		savebutton.click();
+////		Thread.sleep(1000);
+////		approvedactionbutton.click();
+////		Thread.sleep(2000);
+////		editbutton.click();
+////	
+////		remarktextfield.clear();
+////	
+////		remarktextfield.sendKeys("Automation Test Ed"+ formattedDate);
+////		Thread.sleep(1000);
+////		updatebutton.click();
+////		closebutton.click();
+////		Thread.sleep(1000);
+////		approvedactionbutton.click();
+//
+////		deletebutton.click();
+////	
+////		deleteconfirmation.click();
+////		Thread.sleep(2000);
+////		closebutton.click();
+////		Thread.sleep(1000);
+//		// approvedactionbutton.click();
+//		Thread.sleep(2000);
+//		viewbutton.click();
+//		Thread.sleep(2000);
+//		multicheckbox.click();
+//		Thread.sleep(2000);
+//		existingworkordertab.click();
+//
+//		workorderdd.click();
+//
+//		selectworkorder.click();
+//		Thread.sleep(2000);
+//		allocatebutton.click();
+//
+//		backbutton.click();
+//
+//		sortbutton.click();
+//
+//		createdonatoz.click();
+//
+//		sortbutton.click();
+//
+//		factorynameztoa.click();
+//
+//		sortbutton.click();
+//
+//		workordervalueatoz.click();
+//
+//		refreshicon.click();
+//
+//		searchbartextfield.sendKeys("Test");
+//
+//		searchbartextfield.sendKeys(Keys.ENTER);
+
+	}
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[5]")
+	private WebElement approvedactionbutton;
+
+	@FindBy(xpath = "(//a[.='Download won quote'])[5]")
+	private WebElement downloadquote;
+
+	@FindBy(xpath = "(//a[.='Change status'])[3]")
+	private WebElement changestatus;
+
+	@FindBy(xpath = "//select[@formcontrolname='voucherStatus']")
+	private WebElement statusdd;
+
+	@FindBy(xpath = "//button[.='Save']")
+	private WebElement savebutton;
+
+	@FindBy(xpath = "((//a[.='Edit'])[3]")
+	private WebElement editbutton;
+
+	@FindBy(xpath = "//input[@formcontrolname='salesOrderDescription']")
+	private WebElement remarktextfield;
+
+	@FindBy(xpath = "//button[contains(text(),'Update')]")
+	private WebElement updatebutton;
+
+	@FindBy(xpath = "(//a[.='Delete'])[3]")
+	private WebElement deletebutton;
+
+	@FindBy(xpath = "//button[.='Delete']")
+	private WebElement deleteconfirmation;
+
+	@FindBy(xpath = "//span[@class='back c-pointer']")
+	private WebElement backbutton;
+
+	public void viewreports() throws InterruptedException {
+
+		Thread.sleep(3000);
+		approvedactionbutton.click();
+		Thread.sleep(2000);
+		viewbutton.click();
+
+		reportstab.click();
+
+//		viewelevationreport.click();
+//	
+//		viewbasicdimensionreport.click();
+//		
+//		viewtypologycostbreakupreport.click();
+//		
+//		viewprofileboqreport.click();
+//	
+//		viewriboqreport.click();
+//	
+//		viewaccessoriesboqreport.click();
+//		
+//		viewglassboqreport.click();
+//	
+//		viewcuttingschedulereport.click();
+//	
+//		viewdesignassemblyreport.click();
+//		
+//		viewricuttingschedulereport.click();
+//	
+//		viewinstalltionreport.click();
+	}
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[1]")
+	private WebElement basicdimensionreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[2]")
+	private WebElement elevationreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[3]")
+	private WebElement surveychecklistreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[4]")
+	private WebElement quotationreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[5]")
+	private WebElement typologycostbreakupreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[6]")
+	private WebElement dealerreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[7]")
+	private WebElement quotevssurveyreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[8]")
+	private WebElement freightcostreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[9]")
+	private WebElement profileboqreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[10]")
+	private WebElement riboqreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[11]")
+	private WebElement accessoriesboqreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[12]")
+	private WebElement glassboqreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[13]")
+	private WebElement bomsummeryreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[14]")
+	private WebElement meshboqreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[15]")
+	private WebElement designassemblyreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[16]")
+	private WebElement cuttingschedulereportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[17]")
+	private WebElement ricuttingschedulereportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[18]")
+	private WebElement profilelinearcuttinglistreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[19]")
+	private WebElement installationreportdownload;
+
+	public void downloadreports() throws InterruptedException {
+		// reportstab.click();
+		Thread.sleep(2000);
+
+		basicdimensionreportdownload.click();
+		Thread.sleep(2000);
+		elevationreportdownload.click();
+		Thread.sleep(2000);
+		surveychecklistreportdownload.click();
+		Thread.sleep(2000);
+		quotationreportdownload.click();
+		Thread.sleep(2000);
+		typologycostbreakupreportdownload.click();
+		Thread.sleep(2000);
+		quotevssurveyreportdownload.click();
+		Thread.sleep(2000);
+		freightcostreportdownload.click();
+		Thread.sleep(2000);
+		profileboqreportdownload.click();
+		Thread.sleep(2000);
+		riboqreportdownload.click();
+		Thread.sleep(2000);
+		accessoriesboqreportdownload.click();
+		Thread.sleep(2000);
+		glassboqreportdownload.click();
+		Thread.sleep(2000);
+		bomsummeryreportdownload.click();
+		Thread.sleep(2000);
+		meshboqreportdownload.click();
+		Thread.sleep(2000);
+		designassemblyreportdownload.click();
+		Thread.sleep(2000);
+		cuttingschedulereportdownload.click();
+		Thread.sleep(2000);
+		ricuttingschedulereportdownload.click();
+		Thread.sleep(2000);
+		profilelinearcuttinglistreportdownload.click();
+		Thread.sleep(2000);
+		installationreportdownload.click();
+	}
+
+	@FindBy(xpath = "//div[@tooltip='Work orders']")
+	private WebElement workordersmenu;
+
+	@FindBy(xpath = "//a[contains(text(),'Approved')]")
+	private WebElement approvedbutton;
+	
+	@FindBy(xpath="(//div[@class='hovr-area'])[11]")
+	private WebElement workorderapprovedactionbutton;
+	
+	@FindBy(xpath="(//button[.='View'])[2]")
+	private WebElement approvedviewbutton;
+	
+	@FindBy(xpath="(//li[@class='nav-item'])[4]")
+	private WebElement workorderreportstab;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[1]")
+	private WebElement wobasicdimensionreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[2]")
+	private WebElement woelevationreportdownload;
+	
+	@FindBy(xpath = "(//span[@tooltip='Download'])[3]")
+	private WebElement woprofileboqreportdownload;
+	
+	@FindBy(xpath = "(//span[@tooltip='Download'])[4]")
+	private WebElement woriboqreportdownload;
+	
+	@FindBy(xpath = "(//span[@tooltip='Download'])[5]")
+	private WebElement woaccessoriesboqreportdownload;
+	
+	@FindBy(xpath = "(//span[@tooltip='Download'])[6]")
+	private WebElement woglassboqreportdownload;
+
+	@FindBy(xpath = "//input[@formcontrolname='workOrderDescription']")
+	private WebElement workordernametextfield;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='factoryId']")
+	private WebElement factorydd;
+
+	@FindBy(xpath = "//a[contains(text(),'Bhubaneswar Factory')]")
+	private WebElement bhubaneswarfactory;
+
+	public void workorders() throws InterruptedException 
+	{
+		backbutton.click();
+		workordersmenu.click();
+
+		approvedbutton.click();
+		Thread.sleep(2000);
+		workorderapprovedactionbutton.click();
+		Thread.sleep(1000);
+		approvedviewbutton.click();
+		Thread.sleep(1000);
+		workorderreportstab.click();
+		wobasicdimensionreportdownload.click();
+		Thread.sleep(2000);
+		woelevationreportdownload.click();
+		Thread.sleep(2000);
+		woprofileboqreportdownload.click();
+		
+		
+	}
+
+	@FindBy(xpath = "//div[@tooltip='Production batch']")
+	private WebElement productionbatchtab;
+
+	@FindBy(xpath = "//button[.='New batch']")
+	private WebElement newbatchbutton;
+
+	@FindBy(xpath = "//input[@formcontrolname='batchDescription']")
+	private WebElement descriptiontextfield;
+
+	@FindBy(xpath = "//button[.='Create']")
+	private WebElement createbutton;
+
+	@FindBy(xpath = "//a[contains(text(),'Scheduled')]")
+	private WebElement scheduledclassification;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[1]")
+	private WebElement productionbatchactionbutton;
+
+	@FindBy(xpath = "(//a[.='Allocate work order'])[1]")
+	private WebElement allocateworkorder;
+
+	@FindBy(xpath = "//app-eva-multiselect[@formcontrolname='workOrderIds']")
+	private WebElement addworkorderdd;
+
+	@FindBy(xpath = "(//a[@class='dropdown-item c-pointer ng-star-inserted'])[3]")
+	private WebElement workordercheckbox;
+
+	@FindBy(xpath = "(//a[.='Edit'])[1]")
+	private WebElement productionbatcheditbutton;
+
+	@FindBy(xpath = "//button[.='Add']")
+	private WebElement addbutton;
+
+	@FindBy(xpath = "(//a[.='Delete'])[1]")
+	private WebElement productionbatchdeletebutton;
+
+	@FindBy(xpath = "(//button[contains(text(),'View')])[1]")
+	private WebElement productionbatchviewbutton;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[11]")
+	private WebElement downloadmachiningcenter;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[12]")
+	private WebElement downloadcuttingcenter;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[13]")
+	private WebElement downloadcuttinglabels;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[14]")
+	private WebElement download4headwelding;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[15]")
+	private WebElement downloadbeadcutting;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[16]")
+	private WebElement downloadmachinecenteruncut;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[17]")
+	private WebElement downloaduncutlabel;
+
+	public void productionBatch() throws InterruptedException {
+
+//		//backbutton.click();
+//		apps.click();
+//		
+//		parentWindow = driver.getWindowHandle();
+//		planmodule.click();
+//
+//		Set<String> windowId = driver.getWindowHandles();
+//		Iterator<String> it = windowId.iterator();
+//		while (it.hasNext()) 
+//		{
+//			childWindowName = it.next();
+//			if (parentWindow != childWindowName)
+//			{
+//				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+//				System.out.println(newWindowTitle);
+//			}
+//		}
+		productionbatchtab.click();
+		Thread.sleep(2000);
+		newbatchbutton.click();
+		Thread.sleep(2000);
+		descriptiontextfield.sendKeys("Automation Test" + formattedDate);
+		;
+		Thread.sleep(2000);
+		createbutton.click();
+		Thread.sleep(2000);
+		// closebutton.click();
+
+		scheduledclassification.click();
+		Thread.sleep(2000);
+		productionbatchactionbutton.click();
+
+		allocateworkorder.click();
+
+		addworkorderdd.click();
+
+		workordercheckbox.click();
+
+		addworkorderdd.click();
+		Thread.sleep(2000);
+		addbutton.click();
+		Thread.sleep(2000);
+		// closebutton.click();
+
+		productionbatchactionbutton.click();
+
+		productionbatcheditbutton.click();
+		Thread.sleep(2000);
+		updatebutton.click();
+		Thread.sleep(2000);
+		// closebutton.click();
+//		
+//		productionbatchactionbutton.click();
+//	
+//		productionbatchdeletebutton.click();
+//		
+//		deleteconfirmation.click();
+
+		productionbatchactionbutton.click();
+
+		productionbatchviewbutton.click();
+		Thread.sleep(2000);
+		reportstab.click();
+
+		downloadmachiningcenter.click();
+
+//		downloadcuttingcenter.click();
+//		
+//		downloadcuttinglabels.click();
+//		
+//		download4headwelding.click();
+//		
+//		downloadbeadcutting.click();
+//		
+//		downloadmachinecenteruncut.click();
+//		
+//		downloaduncutlabel.click();	
+	}
+
+	@FindBy(xpath = "//div[@tooltip='Capacity planning']")
+	private WebElement capacityplanningbutton;
+
+	@FindBy(xpath = "//span[@tooltip='Sort']")
+	private WebElement sortbuttoncapacityplanning;
+
+	@FindBy(xpath = "//a[.='Created on A to Z']")
+	private WebElement atoz;
+
+	@FindBy(xpath = "//a[.='Created on Z to A']")
+	private WebElement ztoa;
+
+	@FindBy(xpath = "//input[@placeholder='Search...']")
+	private WebElement capacityplanningsearchbar;
+
+	@FindBy(xpath = "//div[@class='form-check form-check-checkbox d-inline-block']")
+	private WebElement multiselectcheckbox;
+
+	@FindBy(xpath = "//button[.='Existing batch']")
+	private WebElement existingbatchbutton;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='batchId']")
+	private WebElement selectbatchdropdown;
+
+	@FindBy(xpath = "//a[contains(text(),'B-22')]")
+	private WebElement batchselect; // allocate button
+
+	@FindBy(xpath = "//span[@tooltip='Refresh']")
+	private WebElement refreshiconcapacityplanning;
+
+	public void capacityplanning() throws InterruptedException {
+
+		Thread.sleep(2000);
+		backbutton.click();
+		capacityplanningbutton.click();
+		Thread.sleep(2000);
+		sortbuttoncapacityplanning.click();
+		atoz.click();
+		sortbuttoncapacityplanning.click();
+		ztoa.click();
+		capacityplanningsearchbar.sendKeys("574");
+		capacityplanningsearchbar.sendKeys(Keys.ENTER);
+		Thread.sleep(2000);
+		refreshiconcapacityplanning.click();
+		multiselectcheckbox.click();
+		existingbatchbutton.click();
+		Thread.sleep(2000);
+		selectbatchdropdown.click();
+		batchselect.click();
+		allocatebutton.click();
+	}
+
+	@FindBy(xpath = "//div[@tooltip='Quote MRP']")
+	private WebElement quotemrpbutton;
+
+	@FindBy(xpath = "//a[contains(text(),'Opportunity name : A to Z')]")
+	private WebElement oppnameatoz;
+
+	@FindBy(xpath = "//a[contains(text(),'Opportunity name : Z to A')]")
+	private WebElement oppnameztoa;
+
+	@FindBy(xpath = "//a[contains(text(),'Date Created: New to Old')]")
+	private WebElement creatednewtoold;
+
+	@FindBy(xpath = "//a[contains(text(),'Date Created: Old to New')]")
+	private WebElement createdoldtonew;
+
+	@FindBy(xpath = "//a[contains(text(),'Area: Low to High')]")
+	private WebElement quotearealowtohigh;
+
+	@FindBy(xpath = "//a[contains(text(),'Area: High to Low')]")
+	private WebElement quoteareahightolow;
+
+	@FindBy(xpath = "//a[contains(text(),'Units: Low to High')]")
+	private WebElement quoteunitslowtohigh;
+
+	@FindBy(xpath = "//a[contains(text(),'Units: High to Low')]")
+	private WebElement quoteunitshightolow;
+
+	@FindBy(xpath = "//span[@class='action-box filter']")
+	private WebElement filterquotemrp;
+
+	@FindBy(xpath = "//app-select[@formcontrolname='stageId']")
+	private WebElement oppstagedropdownfilter;
+
+	@FindBy(xpath = "//a[contains(text(),'PO Received')]")
+	private WebElement poreceived;
+
+	@FindBy(xpath = "//button[.='Apply']")
+	private WebElement applybuttonfilter;
+	
+	@FindBy(xpath="//select[@class='form-control dd-select-bg-clr-var']")
+	private WebElement projecttypedropdown;
+	
+	@FindBy(xpath="(//input[@class='form-control search_items'])[1]")
+	private WebElement salesorderstagedropdown;
+	
+	@FindBy(xpath="//a[contains(text(),'Approved')]")
+	private WebElement approvedsalesorder;
+
+	public void quotemrp() throws InterruptedException {
+		Thread.sleep(2000);
+		quotemrpbutton.click();
+		Thread.sleep(2000);
+		sortbuttoncapacityplanning.click();
+		oppnameatoz.click();
+		sortbuttoncapacityplanning.click();
+		oppnameztoa.click();
+		sortbuttoncapacityplanning.click();
+		creatednewtoold.click();
+		sortbuttoncapacityplanning.click();
+		createdoldtonew.click();
+		sortbuttoncapacityplanning.click();
+		quotearealowtohigh.click();
+		sortbuttoncapacityplanning.click();
+		quoteareahightolow.click();
+		sortbuttoncapacityplanning.click();
+		quoteunitslowtohigh.click();
+		sortbuttoncapacityplanning.click();
+		quoteunitshightolow.click();
+		filterquotemrp.click();
+		oppstagedropdownfilter.click();
+		poreceived.click();
+		applybuttonfilter.click();
+		projecttypedropdown.click();
+		Select sel=new Select(projecttypedropdown);
+		sel.selectByVisibleText("Sales order");
+		filterquotemrp.click();
+		salesorderstagedropdown.click();
+		approvedsalesorder.click();
+		applybuttonfilter.click();
+	}
+
+	@FindBy(xpath = "//li[@tooltip='Insights']")
+	private WebElement insightsplanning;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[1]")
+	private WebElement activesalesorderdownload;
+
+	@FindBy(xpath = "//input[@formcontrolname='startDate']")
+	private WebElement startdate;
+
+	@FindBy(xpath = "(//span[.='1'])[1]")
+	private WebElement firstdate;
+
+	@FindBy(xpath = "//input[@formcontrolname='endDate']")
+	private WebElement enddate;
+
+	@FindBy(xpath = "//span[.='31']")
+	private WebElement lastdate;
+
+	@FindBy(xpath = "//button[.='Download']")
+	private WebElement downloadbuttoninsights;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[2]")
+	private WebElement allsalesorderdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[3]")
+	private WebElement completedsalesorderdownload;
+
+	public void salesanalytics() throws InterruptedException 
+	{
+		insightsplanning.click();
+		activesalesorderdownload.click();
+		startdate.click();
+		Thread.sleep(2000);
+		firstdate.click();
+		Thread.sleep(2000);
+		enddate.click();
+		Thread.sleep(2000);
+		lastdate.click();
+		Thread.sleep(2000);
+		downloadbuttoninsights.click();
+		Thread.sleep(5000);
+		allsalesorderdownload.click();
+		startdate.click();
+		Thread.sleep(2000);
+		firstdate.click();
+		Thread.sleep(2000);
+		enddate.click();
+		Thread.sleep(2000);
+		lastdate.click();
+		Thread.sleep(2000);
+		downloadbuttoninsights.click();
+		Thread.sleep(5000);
+		completedsalesorderdownload.click();
+		Thread.sleep(2000);
+		startdate.click();
+		Thread.sleep(2000);
+		firstdate.click();
+		Thread.sleep(2000);
+		enddate.click();
+		Thread.sleep(2000);
+		lastdate.click();
+		Thread.sleep(2000);
+		downloadbuttoninsights.click();
+	}
+	
+	@FindBy(xpath = "(//div[@class='menu-item'])[3]")
+	private WebElement planningscheduletab;
+	
+	@FindBy(xpath="(//div[@class='cell grid-cell c-pointer bg-color-1 font-size-12 color-2 d-flex align-items-center justify-content-center border-bottom-2 border-right-2'])[5]")
+	private WebElement selectdate;
+	
+	@FindBy(xpath="(//input[@type='text'])[1]")
+	private WebElement shiftnametextfield;
+	
+	@FindBy(xpath="//input[@id='allDay']")
+	private WebElement alldaycheckbox;
+	
+	@FindBy(xpath="(//input[@type='text'])[4]")
+	private WebElement productionexecutivedropdown;
+	
+	@FindBy(xpath=" //a[contains(text(),'SSM894 Automation894 Jul 25 2024')]")
+	private WebElement selectexecutive;
+	
+	@FindBy(xpath="(//input[@type='text'])[5]")
+	private WebElement cutstextfield;
+	
+	@FindBy(xpath="(//input[@type='text'])[6]")
+	private WebElement weldstextfield;
+	
+	@FindBy(xpath="(//input[@type='text'])[7]")
+	private WebElement finishedgoodstextfield;
+	
+	@FindBy(xpath="(//div[@class='body'])[3]")
+	private WebElement addorderstab;
+	
+	@FindBy(xpath="//app-lazy-multiselect[@formcontrolname='workOrderId']")
+	private WebElement workorderdropdown;
+	
+	@FindBy(xpath="(//a[@class='dropdown-item c-pointer'])[5]")
+	private WebElement selectworkorders;
+	
+	@FindBy(xpath="//button[contains(text(),'Download')]")
+	private WebElement downloadbutton;
+	
+	@FindBy(xpath="(//input[@class='form-control search_items'])[1]")
+	private WebElement selectstartdate;
+	
+	@FindBy(xpath="//span[.='15']")
+	private WebElement fifteendate;
+	
+	@FindBy(xpath="(//input[@class='form-control search_items'])[2]")
+	private WebElement selectenddate;
+	
+	@FindBy(xpath="//span[.='27']")
+	private WebElement seventeendate;
+	
+	@FindBy(xpath="(//button[contains(text(),'Download')])[2]")
+	private WebElement downloadreportbutton;
+	
+	public void planningSchedule()
+	{
+		planningscheduletab.click();
+		selectdate.click();
+		shiftnametextfield.sendKeys("SSM Automation" +rdmnumber+ formattedDate );
+		alldaycheckbox.click();
+		productionexecutivedropdown.click();
+		selectexecutive.click();
+		cutstextfield.sendKeys("1500");
+		weldstextfield.sendKeys("1500");
+		finishedgoodstextfield.sendKeys("1500");
+		savebutton.click();
+		addorderstab.click();
+		workorderdropdown.click();
+		selectworkorders.click();
+		downloadbutton.click();
+		selectstartdate.click();
+		fifteendate.click();
+		selectenddate.click();
+		seventeendate.click();
+		downloadreportbutton.click();
+	}
+	
+	@FindBy(xpath="//a[@data-bs-target='#allocated']")
+	private WebElement allocatedtab;
+	
+	@FindBy(xpath="//input[@id='activeAll']")
+	private WebElement checkbox;
+	
+	@FindBy(xpath="//button[contains(text(),'New work order')]")
+	private WebElement neworkordertab;
+	
+	@FindBy(xpath="//button[.='Create and allocate']")
+	private WebElement createandallocatebutton;
+	
+	
+	public void newsalesorderpage()
+	{
+		approvedviewbutton.click();
+		allocatedtab.click();
+		checkbox.click();
+		neworkordertab.click();
+		workordernametextfield.sendKeys("SSM Automation" +rdmnumber + formattedDate);
+		factorydd.click();
+		bhubaneswarfactory.click();
+		createandallocatebutton.click();	
+	}
+}

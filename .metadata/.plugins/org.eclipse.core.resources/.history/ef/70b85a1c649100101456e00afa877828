@@ -1,0 +1,143 @@
+package util;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+
+public class ExpressionUtils {
+
+    // Global variable (set this from wherever you compute it)
+
+    /**
+     * Evaluates a math expression string like "canvasEndX/2" or "(canvasEndX + 10)/3".
+     * Supports +, -, *, / and parentheses. Division rounds HALF_UP to nearest int.
+     * Returns the integer result.
+     */
+    public static int ExpressionSolver(String formula, int canvasEndX, int canvasEndY) {
+        if (formula == null) throw new IllegalArgumentException("formula is null");
+
+        // Replace whole-word occurrences of canvasEndX with its value
+        String replaced = formula.replaceAll("\\bcanvasEndX\\b", String.valueOf(canvasEndX));
+        replaced = formula.replaceAll("\\bcanvasEndY\\b", String.valueOf(canvasEndX));
+
+        // Tokenize
+        List<String> tokens = tokenize(replaced);
+        // Convert to Reverse Polish Notation (shunting-yard)
+        List<String> rpn = toRPN(tokens);
+        // Evaluate RPN to BigDecimal
+        BigDecimal result = evalRPN(rpn);
+
+        // Return integer (HALF_UP)
+        return result.setScale(0, RoundingMode.HALF_UP).intValue();
+    }
+
+    // ------------ Helpers ------------
+
+    private static List<String> tokenize(String s) {
+        List<String> out = new ArrayList<>();
+        int i = 0, n = s.length();
+        while (i < n) {
+            char c = s.charAt(i);
+            if (Character.isWhitespace(c)) { i++; continue; }
+            if ("()+-*/".indexOf(c) >= 0) { out.add(String.valueOf(c)); i++; continue; }
+
+            // number (supports decimals)
+            if (Character.isDigit(c) || c == '.') {
+                int j = i + 1;
+                while (j < n) {
+                    char d = s.charAt(j);
+                    if (Character.isDigit(d) || d == '.') j++; else break;
+                }
+                out.add(s.substring(i, j));
+                i = j;
+                continue;
+            }
+
+            // Unsupported character (e.g., leftover identifiers)
+            if (Character.isLetter(c)) {
+                int j = i + 1;
+                while (j < n && (Character.isLetterOrDigit(s.charAt(j)) || s.charAt(j) == '_')) j++;
+                String ident = s.substring(i, j);
+                throw new IllegalArgumentException("Unknown identifier after replacement: " + ident);
+            }
+
+            throw new IllegalArgumentException("Unexpected character: '" + c + "'");
+        }
+        return out;
+    }
+
+    private static List<String> toRPN(List<String> tokens) {
+        List<String> output = new ArrayList<>();
+        Deque<String> ops = new ArrayDeque<>();
+        Map<String, Integer> prec = Map.of("+", 1, "-", 1, "*", 2, "/", 2);
+
+        for (int i = 0; i < tokens.size(); i++) {
+            String t = tokens.get(i);
+
+            if (isNumber(t)) {
+                output.add(t);
+            } else if (isOperator(t)) {
+                while (!ops.isEmpty() && isOperator(ops.peek())
+                        && prec.get(ops.peek()) >= prec.get(t)) {
+                    output.add(ops.pop());
+                }
+                ops.push(t);
+            } else if ("(".equals(t)) {
+                ops.push(t);
+            } else if (")".equals(t)) {
+                while (!ops.isEmpty() && !"(".equals(ops.peek())) {
+                    output.add(ops.pop());
+                }
+                if (ops.isEmpty() || !"(".equals(ops.pop())) {
+                    throw new IllegalArgumentException("Mismatched parentheses");
+                }
+            } else {
+                throw new IllegalArgumentException("Bad token: " + t);
+            }
+        }
+        while (!ops.isEmpty()) {
+            String op = ops.pop();
+            if ("(".equals(op) || ")".equals(op)) throw new IllegalArgumentException("Mismatched parentheses");
+            output.add(op);
+        }
+        return output;
+    }
+
+    private static BigDecimal evalRPN(List<String> rpn) {
+        Deque<BigDecimal> st = new ArrayDeque<>();
+        for (String t : rpn) {
+            if (isNumber(t)) {
+                st.push(new BigDecimal(t));
+            } else if (isOperator(t)) {
+                if (st.size() < 2) throw new IllegalArgumentException("Insufficient operands for " + t);
+                BigDecimal b = st.pop();
+                BigDecimal a = st.pop();
+                switch (t) {
+                    case "+" -> st.push(a.add(b));
+                    case "-" -> st.push(a.subtract(b));
+                    case "*" -> st.push(a.multiply(b));
+                    case "/" -> {
+                        if (b.compareTo(BigDecimal.ZERO) == 0) throw new ArithmeticException("Division by zero");
+                        // Keep some scale for intermediate division, round HALF_UP
+                        st.push(a.divide(b, 10, RoundingMode.HALF_UP));
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Bad RPN token: " + t);
+            }
+        }
+        if (st.size() != 1) throw new IllegalArgumentException("Invalid expression");
+        return st.pop();
+    }
+
+    private static boolean isOperator(String t) {
+        return "+".equals(t) || "-".equals(t) || "*".equals(t) || "/".equals(t);
+    }
+
+    private static boolean isNumber(String t) {
+        // simple check: digits with optional decimal point
+        return t.matches("\\d+(?:\\.\\d+)?");
+    }
+
+
+}

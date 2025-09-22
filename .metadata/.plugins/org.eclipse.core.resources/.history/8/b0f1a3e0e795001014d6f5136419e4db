@@ -1,0 +1,192 @@
+// Test/mainRunner.java
+package Test;
+
+import Test.readCSVFile.Cred;
+import listeners.AttachHtmlFromLogsListener;
+
+import listeners.ReportingListener;
+import util.EmailableReportWithFailures;
+import util.EmailableReportWithLogs;
+
+import org.testng.TestNG;
+import org.testng.xml.*;
+
+import java.io.InputStream;
+import java.nio.file.*;
+import java.util.*;
+
+public class mainRunner {
+
+  public static void main(String[] args) {
+    util.ReporterConsoleBridge.install();
+    util.Log.initFromSystemProperty();
+
+    // 1) Resolve credentials CSV (no hardcoding)
+    Path credsPath = resolveCredsPath();
+    System.out.println("[mainRunner] Using creds CSV: " + credsPath);
+
+    // 2) Read credentials
+    List<Cred> creds = readCredRows(credsPath);
+    if (creds.isEmpty()) {
+      throw new IllegalStateException("No credential rows found in: " + credsPath);
+    }
+
+    // 3) Threads: cap to number of users
+    int requestedThreads = Integer.parseInt(System.getProperty("threads", "5"));
+    int threads = Math.min(requestedThreads, creds.size());
+
+    // 4) Build TestNG suite
+    XmlSuite suite = new XmlSuite();
+    suite.setName("ParallelSuite");
+    suite.setParallel(XmlSuite.ParallelMode.TESTS);   // NOTE: requires ThreadLocal driver in DriverManager
+    suite.setThreadCount(threads);
+    suite.setPreserveOrder(true);
+    suite.setVerbose(2);
+
+    List<XmlClass> classes = Arrays.asList(
+    //	new XmlClass("Test.Login"),	
+      // new XmlClass("Test.NewAccountModule")
+ //      new XmlClass("Test.NewContactAddition")
+ //      new XmlClass("Test.NewOpportunityAddition")
+//       new XmlClass("Test.NewReceivedPayment"),
+//       new XmlClass("Test.NewQuote")
+//       new XmlClass("Test.NewTaskAdd"),
+//       new XmlClass("Test.NewSurveyModule")
+//       new XmlClass("Test.Orders"),
+ //      new XmlClass("Test.PlanModule")
+ //      new XmlClass("Test.verifyPrice")
+      new XmlClass("Test.verifyListing")
+    //		new XmlClass("Test.CreateDesign")	
+    );
+
+    int i = 1;
+    for (Cred c : creds) {
+      XmlTest t = new XmlTest(suite);
+      t.setName("User-" + i + "-" + c.username);
+      t.setXmlClasses(new ArrayList<>(classes));
+      t.setPreserveOrder(true);
+
+      Map<String, String> params = new HashMap<>();
+      params.put("username", c.username);
+      params.put("password", c.password);
+      params.put("baseUrl",  c.baseUrl);
+      t.setParameters(params);
+
+      i++;
+    }
+
+    // 5) Run TestNG
+    TestNG testng = new TestNG();
+    testng.setUseDefaultListeners(false);
+    testng.setOutputDirectory("test-output");
+    testng.setVerbose(2);
+    testng.addListener(new EmailableReportWithLogs());
+    testng.addListener(new EmailableReportWithFailures());
+    //testng.addListener(new util.CustomHtmlReporter());
+    testng.addListener(new AttachHtmlFromLogsListener());
+    testng.addListener(new ReportingListener());
+    
+    //testng.addListener(new PerMethodRecorderListener());
+   
+
+    testng.setXmlSuites(Collections.singletonList(suite));
+
+    System.out.println("[mainRunner] Working dir: " + System.getProperty("user.dir"));
+    System.out.println("[mainRunner] Users: " + creds.size() + ", threads: " + threads);
+
+    testng.run();
+    System.exit(testng.hasFailure() || testng.hasSkip() ? 1 : 0);
+  }
+
+  // ---------- helpers ----------
+
+  /** Resolve the credentials CSV path from: sysprops → env → common relatives → classpath. */
+  private static Path resolveCredsPath() {
+    // 1) System properties
+    String p = firstNonBlank(
+        System.getProperty("creds"),
+        System.getProperty("credsFile")
+    );
+    if (p != null) return normalizeExisting(p);
+
+    // 2) Environment variables
+    p = firstNonBlank(
+        System.getenv("CREDS"),
+        System.getenv("CREDS_PATH")
+    );
+    if (p != null) return normalizeExisting(p);
+
+    // 3) Common relative paths
+    String[] candidates = {
+        "credentials.csv",
+        "Configuration/credentials.csv"
+    };
+    for (String c : candidates) {
+      Path rel = Paths.get(c).toAbsolutePath().normalize();
+      if (Files.isRegularFile(rel)) return rel;
+    }
+
+    // 4) Classpath resource (copy to temp file so readCSVFile can read a path)
+    try (InputStream in = Thread.currentThread().getContextClassLoader()
+                                .getResourceAsStream("credentials.csv")) {
+      if (in != null) {
+        Path tmp = Files.createTempFile("credentials-", ".csv");
+        Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+        tmp.toFile().deleteOnExit();
+        return tmp.toAbsolutePath();
+      }
+    } catch (Exception ignore) {}
+
+    // Nothing found → clear error
+    String wd = System.getProperty("user.dir");
+    throw new IllegalStateException(
+        "Could not locate credentials.csv.\n" +
+        "Pass one of:\n" +
+        "  -Dcreds=\"C:/path/to/credentials.csv\"\n" +
+        "  -DcredsFile=\"C:/path/to/credentials.csv\"\n" +
+        "or set env CREDS / CREDS_PATH, or place credentials.csv in:\n" +
+        "  " + Paths.get("credentials.csv").toAbsolutePath() + "\n" +
+        "  " + Paths.get("Configuration/credentials.csv").toAbsolutePath() + "\n" +
+        "Working dir: " + wd
+    );
+  }
+
+  private static Path normalizeExisting(String raw) {
+    String cleaned = raw.trim().replace("\"", "");
+    Path p = Paths.get(cleaned).toAbsolutePath().normalize();
+    if (!Files.isRegularFile(p)) {
+      throw new IllegalStateException("Creds file not found: " + p);
+    }
+    return p;
+  }
+
+  private static String firstNonBlank(String... vals) {
+    if (vals == null) return null;
+    for (String v : vals) {
+      if (v != null && !v.trim().isEmpty()) return v;
+    }
+    return null;
+  }
+
+  /** Reads rows and removes a header if the first row looks like one. */
+  private static List<Cred> readCredRows(Path path) {
+    List<Cred> rows = readCSVFile.readCreds(path.toString());
+    if (rows.isEmpty()) return rows;
+
+    Cred first = rows.get(0);
+    boolean headerLike =
+        equalsIc(first.username, "username") ||
+        equalsIc(first.password, "password") ||
+        equalsIc(first.baseUrl,  "baseurl")  ||
+        equalsIc(first.baseUrl,  "url");
+
+    if (headerLike) {
+      rows = rows.subList(Math.min(1, rows.size()), rows.size());
+    }
+    return rows;
+  }
+
+  private static boolean equalsIc(String a, String b) {
+    return a != null && a.trim().equalsIgnoreCase(b);
+  }
+}

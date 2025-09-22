@@ -1,0 +1,99 @@
+package POM;
+
+import util.BasePage;
+import util.Log;
+import util.UIActions;
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
+
+public class LoginSapphire extends BasePage {
+
+  // Locators (broad but resilient)
+  private static final By USER = By.xpath(
+      "//input[( @type='text' or @type='email') and " +
+      "(contains(translate(@placeholder,'EMAIL','email'),'email') " +
+      " or contains(translate(@name,'EMAIL','email'),'email') " +
+      " or contains(translate(@formcontrolname,'EMAIL','email'),'email') " +
+      " or contains(translate(@id,'EMAIL','email'),'email'))]"
+  );
+  private static final By PASS = By.xpath("//input[@type='password']");
+  private static final By OPT_CHECKBOX = By.xpath("//input[@type='checkbox']");
+  private static final By LOGIN_BTN = By.xpath(
+      "//button[.//span[normalize-space()='Login'] or normalize-space()='Login' or normalize-space()='Sign in' or .=' Sign in ']" +
+      " | //div[@class='w-100 d-grid']//button" +
+      " | //*[@role='button' and (normalize-space()='Login' or .//span[normalize-space()='Login'])]"
+  );
+
+  public LoginSapphire(WebDriver driver) {
+    super(driver);
+    PageFactory.initElements(driver, this);
+  }
+
+  public void login(String username, String password) {
+    Log.setAction("Login");
+
+    // Already in dashboard?
+    if (driver.getCurrentUrl().contains("/qms")) {
+      Log.info("Login", "Already logged in; skipping");
+      Log.clearAction();
+      return;
+    }
+
+    // Wait until either dashboard or login form appears
+    new UIActions
+    (driver).until(d ->
+        d.getCurrentUrl().contains("/qms") ||
+        !d.findElements(USER).isEmpty() ||
+        !d.findElements(PASS).isEmpty() ||
+        !d.findElements(LOGIN_BTN).isEmpty());
+
+    if (driver.getCurrentUrl().contains("/qms")) {
+      Log.info("Login", "Navigated to dashboard without form interaction");
+      Log.clearAction();
+      return;
+    }
+
+    // Fill username + password
+    WebElement user = ui.visible(USER, "Username");
+    user.click(); user.clear(); user.sendKeys(username);
+    Log.info("Login", "Entered username");
+
+    WebElement pass = ui.visible(PASS, "Password");
+    pass.click(); pass.clear(); pass.sendKeys(password);
+    Log.info("Login", "Entered password");
+
+    // Optional checkbox
+    if (!driver.findElements(OPT_CHECKBOX).isEmpty()) {
+      try {
+        WebElement cb = driver.findElement(OPT_CHECKBOX);
+        if (!cb.isSelected()) {
+          ui.scrollCenter(cb, "Remember/Terms checkbox");
+          cb.click();
+          Log.info("Login", "Checked optional checkbox");
+        }
+      } catch (StaleElementReferenceException ignored) {}
+    }
+
+    // Click login
+    ui.click(LOGIN_BTN, "Login button");
+
+    // Post-login wait
+    new WebDriverWait(driver, Duration.ofSeconds(20))
+        .until(ExpectedConditions.or(
+            ExpectedConditions.urlContains("/qms"),
+            ExpectedConditions.invisibilityOfElementLocated(LOGIN_BTN)
+        ));
+
+    if (!driver.getCurrentUrl().contains("/qms")) {
+      Log.fail("Login", "Login did not navigate to /qms; current=" + driver.getCurrentUrl(), null);
+      throw new AssertionError("Login failed; URL=" + driver.getCurrentUrl());
+    }
+
+    Log.info("Login", "Success");
+    Log.clearAction();
+  }
+}

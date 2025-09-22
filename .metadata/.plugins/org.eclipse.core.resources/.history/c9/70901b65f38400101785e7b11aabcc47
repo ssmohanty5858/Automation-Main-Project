@@ -1,0 +1,794 @@
+package POM;
+
+import java.awt.AWTException;
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.NoSuchElementException;
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import org.openqa.selenium.ElementClickInterceptedException;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+public class NewQuotePage {
+
+    public WebDriver driver;
+    private final WebDriverWait wait;
+
+    private final int rdmnumber = (int)(Math.random()*1000);
+    private final String formattedDate = new SimpleDateFormat(" MMM dd yyyy").format(new Date());
+
+    // ---------------------- NAV / Quote list ----------------------
+    @FindBy(xpath="(//div[@routerlinkactive='active'])[5]")
+    private WebElement quotetab;
+
+    @FindBy(xpath="//button[normalize-space()='Create first quote']")
+    private WebElement createfirstquote;
+
+    @FindBy(xpath="//input[@id='Opportunity']")
+    private WebElement opportunitydropdown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap body-1']")
+    private List<WebElement> opportunitydropdownlists;
+
+    @FindBy(xpath="//div[@class='table-row']")
+    private WebElement opportunitylistpage;
+
+    @FindBy(xpath="(//div[@class='table-row'])[1]")
+    private WebElement quotelistingpage;
+
+    @FindBy(xpath="(//div[@class='cursor-pointer rotate'])[2]")
+    private WebElement actionbutton;      // (kept; used elsewhere)
+
+    @FindBy(xpath="(//button[contains(text(),'View')])[1]")
+    private WebElement viewbutton;
+
+    // ---------------------- Catalog / Designs ----------------------
+    @FindBy(xpath="//button[@class='nav-link subtitle-2']")
+    private WebElement catalog;
+
+    @FindBy(xpath="(//button[contains(text(),'Select design')])[1]")
+    private WebElement selectfirstdesign;
+    @FindBy(xpath="(//button[contains(text(),'Select design')])[2]")
+    private WebElement selectseconddesign;
+    @FindBy(xpath="(//button[contains(text(),'Select design')])[3]")
+    private WebElement selectthirddesign;
+    @FindBy(xpath="(//button[contains(text(),'Select design')])[4]")
+    private WebElement selectfourthdesign;
+    @FindBy(xpath="(//button[contains(text(),'Select design')])[5]")
+    private WebElement selectfifthdesign;
+
+    @FindBy(xpath="//input[@formcontrolname='designCode']")
+    private WebElement designreftextfield;
+    @FindBy(xpath="//input[@formcontrolname='quantity']")
+    private WebElement designqtyfield;
+    @FindBy(xpath="//input[@formcontrolname='location']")
+    private WebElement deslocationfield;
+    @FindBy(xpath="//input[@formcontrolname='floorNo']")
+    private WebElement floornofield;
+    @FindBy(xpath="//textarea[@formcontrolname='remark']")
+    private WebElement notetextfield;
+    @FindBy(xpath="//button[.='Apply']")
+    private WebElement applybutton;
+    @FindBy(xpath="(//button[contains(.,'Save')])[2]")
+    private WebElement savebutton;
+
+    @FindBy(xpath="//button[.='Yes']")
+    private WebElement yesButton;
+
+    // ---------------------- Global edits ----------------------
+    @FindBy(xpath="//button[@class='nav-link subtitle-2']")
+    private WebElement projecttab;
+
+    @FindBy(xpath="(//input[@type='checkbox'])[2]")
+    private WebElement firstcheckbox;
+
+    @FindBy(xpath="//label[contains(text(),'4 MM CLEAR GLASS')]")
+    private WebElement fourmmclearglass;
+
+    @FindBy(xpath="//button[contains(text(),'Save')]")
+    private WebElement globalsave;
+
+    @FindBy(xpath="//label[contains(text(),'FIBER MESH')]")
+    private WebElement fibermesh;
+
+    @FindBy(xpath="//div[contains(text(),'In - MAHOGANY')]")
+    private WebElement mahogany;
+
+    @FindBy(xpath="(//button[.='Ok'])")
+    private WebElement okbutton;
+
+    @FindBy(xpath="//div[@class='dropdown']")
+    private WebElement globaledit;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'Glass')]])[2]")
+    private WebElement globalglasschange;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'Mesh')]])[2]")
+    private WebElement globalmesschange;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'Color')]])[2]")
+    private WebElement globalcolorchange;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'Standard bar')]])[2]")
+    private WebElement globarstandardbarchange;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'Design quantity')]])[2]")
+    private WebElement globalDesignQuantity;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'RI thickness')]])[2]")
+    private WebElement globalRIThickness;
+
+    @FindBy(xpath="(//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//div[contains(@class,'dropdown-item')][.//text()[contains(.,'Global image')]])[2]")
+    private WebElement globalImage;
+
+    // ---------------------- Design action menu ----------------------
+    // (Removed actionButtons lists; we’ll resolve fresh every time)
+
+    @FindBy(xpath="//a[.='Duplicate']")
+    private WebElement duplicatedesignbutton;
+
+    @FindBy(xpath="//a[.='Save In Library']")
+    private WebElement saveInLibrarybutton;
+
+    @FindBy(xpath="//a[.='Multiple copy']")
+    private WebElement multiplecopybutton;
+
+    @FindBy(xpath="//a[.='Replace Image']")
+    private WebElement replaceimage;
+
+    @FindBy(xpath="//a[.='Delete']")
+    private WebElement deletebutton;
+
+    @FindBy(xpath="(//input[@type='text'])[2]")
+    private WebElement duplicatedesignref;
+
+    @FindBy(xpath="(//button[contains(text(),'Save')])[2]")
+    private WebElement duplicatesavebutton;
+
+    // ---------------------- Revision ----------------------
+    @FindBy(xpath="(//button[@type='button'])[2]")
+    private WebElement backbutton;
+
+    @FindBy(xpath="//a[.='Add Revision']")
+    private WebElement addrevision;
+
+    @FindBy(xpath="(//input[@autocomplete='off'])[4]")
+    private WebElement revisiontitletextfield;
+
+    @FindBy(xpath="(//textarea[@type='text'])")
+    private WebElement notetextareafield;
+
+    @FindBy(xpath="//button[contains(text(),'Add')]")
+    private WebElement revisionaddbutton;
+    
+    @FindBy(xpath="//a[.='Mark as Default']")
+    private WebElement markAsDefault;
+    
+    @FindBy(xpath="//a[.='Edit Quote Valid Date']")
+    private WebElement editQuoteValidDate;
+    
+    @FindBy(xpath="//a[.='Remark']")
+    private WebElement quoteRemark;
+    
+    @FindBy(xpath="//a[.='Edit Revision Title']")
+    private WebElement editRevisionTitle;
+    
+//    @FindBy(xpath="//a[.='Delete']")
+//    private WebElement deleteButton;
+
+    // ---------------------- Mark as Won ----------------------
+    @FindBy(xpath="//a[.='Mark as Won']")
+    private WebElement markwaswontab;
+
+    @FindBy(xpath="(//input[@type='text'])[3]")
+    private WebElement stagedropdown;
+
+    @FindBy(xpath="//div[contains(@class,'modal-content')]//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//a")
+    private List<WebElement> advancereceived;
+
+    @FindBy(xpath="(//input[@type='text'])[5]")
+    private WebElement competitordropdown;
+
+    @FindBy(xpath="//div[contains(@class,'modal-content')]//div[contains(@class,'dropdown-menu') and contains(@class,'show')]//a")
+    private List<WebElement> competitordropdownoptions;
+
+    @FindBy(xpath="(//input[@autocomplete='off'])[7]")
+    private WebElement quoteexternalcodetextfield;
+
+    @FindBy(xpath="(//input[@type='text'])[7]")
+    private WebElement calendar;
+
+    @FindBy(xpath="//span[.='25']")
+    private WebElement seventeen;
+
+    @FindBy(xpath="//button[@type='submit']")
+    private WebElement savemarkaswon;
+
+    // ---------------------- Smart Quote Link ----------------------
+    @FindBy(xpath="//a[.='Generate Smart Quote Link']")
+    private WebElement generatesmartquotelink;
+
+    @FindBy(xpath="//button[@class='btn btn-reg btn-outline-primary btn-whatsapp']")
+    private WebElement whatsppbutton;
+
+    @FindBy(xpath="(//input[@type='text'])[3]")
+    private WebElement clientnametextfield;
+
+    @FindBy(xpath="(//input[@type='text'])[5]")
+    private WebElement mobilenumber;
+
+    @FindBy(xpath="//button[.='Send']")
+    private WebElement sendbutton;
+
+    // ---------------------- Reports ----------------------
+    @FindBy(xpath="//input[@type='search']")
+    private WebElement searchbar;
+
+    @FindBy(xpath="(//button[contains(text(),'Expand')])[1]")
+    private WebElement expandbutton;
+
+    @FindBy(xpath="(//button[contains(text(),'View')])[2]")
+    private WebElement viewafterexpand;
+
+    @FindBy(xpath="(//button[@class='btn eva-btn body-1 eva-btn-subtle'])[5]")
+    private WebElement reportstab;
+
+    @FindBy(xpath="(//div[.='Production Reports'])[1]")
+    private WebElement productionReports;
+
+    @FindBy(xpath="(//div[@class='c-pointer'])[3]")
+    private WebElement designassemblyreport;
+    
+    @FindBy(xpath = "//app-date-time-picker[@formcontrolname='expectedSupplyStartDate']")
+    private List<WebElement> startPickerPresence; // using List to check presence
+
+    @FindBy(xpath = "//app-date-time-picker[@formcontrolname='expectedSupplyEndDate']")
+    private List<WebElement> endPickerPresence;
+
+    @FindBy(xpath = "//app-date-time-picker[@formcontrolname='expectedSupplyStartDate']")
+    private WebElement startCalendarIcon;
+
+    @FindBy(xpath = "//app-date-time-picker[@formcontrolname='expectedSupplyEndDate']")
+    private WebElement endCalendarIcon;
+
+    // ---------------------- ctor ----------------------
+    public NewQuotePage(WebDriver driver) {
+        this.driver = driver;
+        this.wait   = new WebDriverWait(driver, Duration.ofSeconds(15));
+        PageFactory.initElements(driver, this);
+    }
+
+    // ====================== tiny helpers ======================
+    private void hover(WebElement el) {
+        new Actions(driver).moveToElement(el).pause(Duration.ofMillis(150)).perform();
+    }
+    private void click(WebElement el) {
+        wait.until(ExpectedConditions.visibilityOf(el));
+        ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView({block:'center'});", el);
+        try {
+            wait.until(ExpectedConditions.elementToBeClickable(el)).click();
+        } catch (ElementClickInterceptedException e) {
+            ((JavascriptExecutor)driver).executeScript("arguments[0].click();", el);
+        }
+    }
+    private void type(WebElement el, String text) {
+        wait.until(ExpectedConditions.visibilityOf(el));
+        ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView({block:'center'});", el);
+        el.click();
+        el.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
+        el.sendKeys(text);
+    }
+    private void shortSleep(long ms) { try { Thread.sleep(ms); } catch (InterruptedException ignored) {} }
+
+    // === NEW: resolve the first visible 3-dots design action button, any tag ===
+    private WebElement getFirstVisibleDesignActionButton() {
+        String script =
+            "const sels=[" +
+            "  \"app-action-menu button\"," +
+            "  \"app-action-menu [role='button']\"," +
+            "  \"[aria-label='More'],[aria-label='Actions']\"," +
+            "  \"[data-testid='design-action'],[data-test='design-action']\"," +
+            "  \".cursor-pointer.rotate, .rotate.cursor-pointer\"" +
+            "];" +
+            "for (const sel of sels) {" +
+            "  const list = document.querySelectorAll(sel);" +
+            "  for (const e of list) {" +
+            "    const s = getComputedStyle(e);" +
+            "    const vis = e.offsetParent !== null && s.display !== 'none' && s.visibility !== 'hidden';" +
+            "    if (vis) return e;" +
+            "  }" +
+            "}" +
+            "return null;";
+        return (WebElement)((JavascriptExecutor)driver).executeScript(script);
+    }
+    private WebElement waitForVisibleActionButton() {
+        return new WebDriverWait(driver, Duration.ofSeconds(12)).until(d -> {
+            try {
+                WebElement el = getFirstVisibleDesignActionButton();
+                return (el != null && el.isDisplayed()) ? el : null;
+            } catch (StaleElementReferenceException ignored) { return null; }
+        });
+    }
+    private void clickFirstDesignActionButton() {
+        WebElement btn = waitForVisibleActionButton();
+        ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView({block:'center'});", btn);
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(8))
+                .until(ExpectedConditions.elementToBeClickable(btn)).click();
+        } catch (ElementClickInterceptedException e) {
+            ((JavascriptExecutor)driver).executeScript("arguments[0].click();", btn);
+        }
+    }
+ // 1) Click the first "Expand" and return its expanded panel (next sibling)
+    private WebElement expandFirstRowAndGetPanel() {
+        WebElement expand = new WebDriverWait(driver, Duration.ofSeconds(10))
+            .until(ExpectedConditions.elementToBeClickable(
+                org.openqa.selenium.By.xpath("(//button[contains(normalize-space(.),'Expand')])[1]")));
+
+        // Click Expand
+        ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView({block:'center'});", expand);
+        expand.click();
+
+        // Find the panel that belongs to THIS row: it's the row's nextElementSibling
+        WebElement panel = (WebElement) ((JavascriptExecutor) driver).executeScript(
+            "const btn=arguments[0];" +
+            // find the row container that holds the Expand button (adjust selector if your row wrapper differs)
+            "const row = btn.closest('.d-flex, .table-row, [class*=\"table-row\"]');" +
+            "return row ? row.nextElementSibling : null;",
+            expand
+        );
+
+        // Wait until panel exists and is visible (expanded)
+        return new WebDriverWait(driver, Duration.ofSeconds(10)).until(d -> {
+            if (panel == null) return null;
+            try { return panel.isDisplayed() ? panel : null; } catch (Exception e) { return null; }
+        });
+    }
+
+    // 2) Inside a given container (the expanded panel), find the FIRST visible 3-dots
+    private WebElement firstVisibleActionInside(WebElement container) {
+        String script =
+            "const root = arguments[0];" +
+            "if (!root) return null;" +
+            "const sels=[" +
+            "  \"app-action-menu button\"," +
+            "  \"app-action-menu [role='button']\"," +
+            "  \"[aria-label='More'],[aria-label='Actions']\"," +
+            "  \"[data-testid='design-action'],[data-test='design-action']\"," +
+            "  \".cursor-pointer.rotate, .rotate.cursor-pointer\"" +
+            "];" +
+            "for (const sel of sels) {" +
+            "  const list = root.querySelectorAll(sel);" +
+            "  for (const e of list) {" +
+            "    const s = getComputedStyle(e);" +
+            "    const vis = e.offsetParent !== null && s.display !== 'none' && s.visibility !== 'hidden';" +
+            "    if (vis) return e;" +
+            "  }" +
+            "}" +
+            "return null;";
+        return (WebElement) ((JavascriptExecutor) driver).executeScript(script, container);
+    }
+
+    // 3) Click with wait/JS fallback
+    private void clickScopedAction(WebElement scope) {
+        WebElement dots = new WebDriverWait(driver, Duration.ofSeconds(12)).until(d -> {
+            try {
+                WebElement el = firstVisibleActionInside(scope);
+                return (el != null && el.isDisplayed()) ? el : null;
+            } catch (StaleElementReferenceException ignored) { return null; }
+        });
+        ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView({block:'center'});", dots);
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(8))
+                .until(ExpectedConditions.elementToBeClickable(dots)).click();
+        } catch (ElementClickInterceptedException e) {
+            ((JavascriptExecutor)driver).executeScript("arguments[0].click();", dots);
+        }
+    }
+
+    public void clickChildMenuAfterExpandAndAddRevision() {
+        // 1) Expand the first parent row and get its child panel
+        WebElement panel = expandFirstRowAndGetPanel();
+
+        // 2) Click the FIRST 3-dots inside *that* panel (child context)
+        clickScopedAction(panel);
+
+        // 3) Now the child context menu is open – proceed
+        click(addrevision);
+        type(revisiontitletextfield, "SSM Revision " + rdmnumber);
+        type(notetextareafield, "Note test " + formattedDate);
+        click(revisionaddbutton);
+    }
+    private final DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    // ====================== flows ======================
+    public void createFirstQuote() {
+        click(quotetab);
+        click(createfirstquote);
+    }
+
+    public List<String> getOpportunityDropdownOptions() {
+        click(opportunitydropdown);
+        wait.until(ExpectedConditions.visibilityOfAllElements(opportunitydropdownlists));
+        List<String> options = new ArrayList<>();
+        if (!opportunitydropdownlists.isEmpty()) {
+            WebElement first = opportunitydropdownlists.get(0);
+            click(first);
+        }
+        return options;
+    }
+ // ========= Helpers =========
+    private boolean areBothCalendarsPresent() {
+        return !driver.findElements(By.xpath("//app-date-time-picker[@formcontrolname='expectedSupplyStartDate']")).isEmpty()
+            && !driver.findElements(By.xpath("//app-date-time-picker[@formcontrolname='expectedSupplyEndDate']")).isEmpty();
+    }
+
+    private void openCalendar(WebElement icon) {
+        wait.until(ExpectedConditions.elementToBeClickable(icon)).click();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(openCalendarRoot()));
+    }
+
+    @FindBy(xpath=".//div[contains(@class,'month')]/span[contains(@class,'cal-icon')][2]")
+    private WebElement calendarnxtbtn;
+    
+    @FindBy(xpath="(//span[.='1'])[1]")
+    private WebElement firstofeverymonth;
+    
+    @FindBy(xpath="(//span[.='15'])[1]")
+    private WebElement fifteenofeverymonth;
+    
+    /** Matches the “Next” chevron shown in your screenshot/DOM. */
+    private void clickNextInOpenCalendar() {
+        WebElement root = wait.until(ExpectedConditions.visibilityOfElementLocated(openCalendarRoot()));
+
+        // In your DOM: header is <div class="month ..."> and "Next" is the SECOND span.cal-icon
+        By nextBtn = By.xpath(".//div[contains(@class,'month')]/span[contains(@class,'cal-icon')][2]");
+        wait.until(ExpectedConditions.elementToBeClickable(root.findElement(nextBtn))).click();
+    }
+
+    /** Click a day cell by visible number (e.g., 1, 15) in the currently open calendar. */
+    private void pickDayInOpenCalendar(int day) {
+        WebElement root = wait.until(ExpectedConditions.visibilityOfElementLocated(openCalendarRoot()));
+        String d = String.valueOf(day);
+
+        // Works across common implementations: button/span/div with the day text, not disabled
+        By dayCell = By.xpath(
+            ".//td[not(contains(@class,'disabled'))]" +
+            "[.//button[normalize-space()='" + d + "'] or .//*[normalize-space()='" + d + "']]" +
+            "//*[self::button or self::span or self::div][normalize-space()='" + d + "']"
+        );
+
+        wait.until(ExpectedConditions.elementToBeClickable(root.findElement(dayCell))).click();
+
+        // Optional: wait for overlay to close (depends on widget behavior)
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(openCalendarRoot()));
+    }
+
+    /** Locates the currently visible calendar overlay container. */
+    private By openCalendarRoot() {
+        // Your DOM shows: <div class="cdk-overlay-container"> ... <div id="cdk-overlay-0"> ... <calendar ...>
+        return By.xpath("//input[@class='eds-form-control search_items']");
+    }
+    @FindBy(xpath="//button[.='Add']")
+    private WebElement addbutton;
+
+    public void createFirstQuote1() throws InterruptedException
+    { 
+        if (areBothCalendarsPresent()) {
+            if (!startPickerPresence.isEmpty()) {
+                openCalendar(startCalendarIcon);
+                shortSleep(1000);
+                click(calendarnxtbtn);
+               // clickNextInOpenCalendar();      // <— based on your DOM
+                click(firstofeverymonth);       // start = 1st
+                openCalendar(endCalendarIcon);
+                shortSleep(1000);
+                click(calendarnxtbtn);
+                click(fifteenofeverymonth); 
+//                clickNextInOpenCalendar();      // <— based on your DOM
+//                pickDayInOpenCalendar(15);      // end = 15th
+            }
+        }
+        wait.until(ExpectedConditions.elementToBeClickable(addbutton)).click();
+        Thread.sleep(1000);
+       //	click(addbutton); 
+    	
+    }
+
+    public void mouseHoverElement() {
+        click(quotetab);
+        wait.until(ExpectedConditions.visibilityOf(actionbutton));
+        hover(actionbutton);
+        wait.until(ExpectedConditions.visibilityOf(viewbutton));
+        hover(viewbutton);
+    }
+
+    public void createDesign() {
+        click(quotetab);
+        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+        hover(quotelistingpage);
+        shortSleep(150);
+        wait.until(ExpectedConditions.visibilityOf(viewbutton));
+        click(viewbutton);
+
+        shortSleep(800);
+
+        click(selectfirstdesign);
+        type(designreftextfield, "Window1");
+        type(designqtyfield, "5");
+        type(deslocationfield, "Kitchen");
+        type(floornofield, "1");
+        type(notetextfield, "Remark Automation " + rdmnumber + formattedDate);
+        click(applybutton);
+        wait.until(ExpectedConditions.visibilityOf(savebutton));
+        click(savebutton);
+
+        shortSleep(300);
+        click(selectseconddesign);
+        type(designreftextfield, "Window2");
+        type(designqtyfield, "5");
+        type(deslocationfield, "Hall");
+        type(floornofield, "1");
+        click(applybutton);
+        wait.until(ExpectedConditions.visibilityOf(savebutton));
+        click(savebutton);
+
+        shortSleep(300);
+        click(selectthirddesign);
+        type(designreftextfield, "Window3");
+        type(designqtyfield, "5");
+        type(floornofield, "1");
+        type(notetextfield, "Remark Automation " + rdmnumber + formattedDate);
+        click(applybutton);
+        wait.until(ExpectedConditions.visibilityOf(savebutton));
+        click(savebutton);
+
+        shortSleep(300);
+        click(selectfourthdesign);
+        type(designreftextfield, "Window4");
+        type(designqtyfield, "5");
+        type(deslocationfield, "Balcony");
+        type(notetextfield, "Remark Automation " + rdmnumber + formattedDate);
+        click(applybutton);
+        wait.until(ExpectedConditions.visibilityOf(savebutton));
+        click(savebutton);
+
+        shortSleep(300);
+        click(selectfifthdesign);
+        type(designreftextfield, "Window5");
+        type(designqtyfield, "5");
+        click(applybutton);
+        wait.until(ExpectedConditions.visibilityOf(savebutton));
+        click(savebutton);
+    }
+
+    public void globalEdits() {
+        shortSleep(300);
+        click(projecttab);
+
+        click(globaledit);
+        shortSleep(200);
+        click(globalglasschange);
+        shortSleep(200);
+        click(firstcheckbox);
+        click(fourmmclearglass);
+        click(globalsave);
+        wait.until(ExpectedConditions.visibilityOf(okbutton));
+        click(okbutton);
+
+        click(globaledit);
+        shortSleep(200);
+        click(globalmesschange);
+        shortSleep(200);
+        click(firstcheckbox);
+        click(fibermesh);
+        click(globalsave);
+        wait.until(ExpectedConditions.visibilityOf(okbutton));
+        click(okbutton);
+
+        click(globaledit);
+        shortSleep(200);
+        click(globalcolorchange);
+        shortSleep(200);
+        click(firstcheckbox);
+        click(mahogany);
+        click(globalsave);
+        wait.until(ExpectedConditions.visibilityOf(okbutton));
+        click(okbutton);
+    }
+
+    public void duplicateDesign() {
+        clickFirstDesignActionButton();         // <— always first 3-dots
+        shortSleep(200);
+        click(duplicatedesignbutton);
+        shortSleep(200);
+        type(duplicatedesignref, "SSM Test duplicate " + rdmnumber);
+        click(duplicatesavebutton);
+    }
+
+    public void saveInLib() {
+        clickFirstDesignActionButton();         // <— always first 3-dots
+        click(saveInLibrarybutton);
+        shortSleep(200);
+        type(duplicatedesignref, "SSM Save In Library " + rdmnumber + formattedDate);
+        click(duplicatesavebutton);
+    }
+
+    public void firstAddRevision() {
+    	click(backbutton);
+        //click(quotetab);
+        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+
+        clickFirstDesignActionButton();
+        click(addrevision);
+        type(revisiontitletextfield, "SSM Revision " + rdmnumber);
+        type(notetextareafield, "Note test " + formattedDate);
+        click(revisionaddbutton);
+    }
+
+    public void secondAddRevision() {
+        //
+    	 shortSleep(2000);
+    	wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+        clickFirstDesignActionButton();
+        click(addrevision);
+        type(revisiontitletextfield, "SSM Revision " + rdmnumber);
+        type(notetextareafield, "Note test " + formattedDate);
+        click(revisionaddbutton);
+    }
+    
+    public void deleteRevision()
+    {
+    	
+        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+        hover(quotelistingpage);
+//        shortSleep(1500);
+//        wait.until(ExpectedConditions.visibilityOf(expandbutton));
+//        click(expandbutton);
+        shortSleep(2000);
+        clickChildMenuAfterExpandAndAddRevision();
+        click(deletebutton);
+        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+        hover(quotelistingpage);
+//        shortSleep(1500);
+//        wait.until(ExpectedConditions.visibilityOf(expandbutton));
+//        click(expandbutton);
+        shortSleep(2000);
+        clickChildMenuAfterExpandAndAddRevision();
+        click(markAsDefault);
+    }
+
+    public void markasWon() {
+        shortSleep(2000);
+        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+        clickFirstDesignActionButton();
+        shortSleep(200);
+        click(markwaswontab);
+        shortSleep(200);
+        click(stagedropdown);
+        new WebDriverWait(driver, Duration.ofSeconds(10))
+            .until(ExpectedConditions.visibilityOfAllElements(advancereceived));
+        advancereceived.get(0).click();
+
+        click(competitordropdown);
+        WebElement first = wait.until(d -> competitordropdownoptions.size() > 0 ? competitordropdownoptions.get(0) : null);
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", first);
+        try {
+            wait.until(ExpectedConditions.elementToBeClickable(first)).click();
+        } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", first);
+        }
+        type(quoteexternalcodetextfield, "Quote External Code " + rdmnumber);
+        shortSleep(200);
+        click(calendar);
+        click(seventeen);
+        shortSleep(2000);
+        click(savemarkaswon);
+    }
+    
+ // Inside your PageObject class
+
+    @FindBy(xpath = "//modal-container//input")   // Adjust if input has unique class/id
+    private WebElement smartQuoteLinkInput;
+
+    @FindBy(xpath = "//button[contains(text(),'Copy link')]")
+    private WebElement copyLinkButton;
+
+
+    public void generateSmartQuoteLink() throws InterruptedException {
+    	 click(quotetab);
+         wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+    	 shortSleep(2000);
+//        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+//        clickFirstDesignActionButton();
+//        shortSleep(200);
+//        click(generatesmartquotelink);       
+//        click(whatsppbutton);
+//        shortSleep(200);
+//        clientnametextfield.sendKeys(Keys.CONTROL + "a", Keys.DELETE);
+//        clientnametextfield.sendKeys("Mr. Chinmit Kumar Sahoo");
+//        mobilenumber.sendKeys(Keys.CONTROL + "a", Keys.DELETE);
+//        mobilenumber.sendKeys("8093000911");
+//        shortSleep(200);
+//        wait.until(ExpectedConditions.visibilityOf(sendbutton));
+//        click(sendbutton);
+        
+        //////Open Smart quote in a new tab////
+        shortSleep(2000);
+        wait.until(ExpectedConditions.visibilityOf(quotelistingpage));
+        clickFirstDesignActionButton();
+        shortSleep(200);
+        click(generatesmartquotelink);
+     
+     // ✅ Wait until modal appears and input is visible
+//        wait.until(ExpectedConditions.visibilityOf(smartQuoteLinkInput));
+
+     // Option 1: Click the copy link button (not required if we can directly read input)
+        click(copyLinkButton);
+
+     // ✅ Extract URL directly from input field
+     String copiedUrl = copyLinkButton.getAttribute("value");
+     System.out.println("Smart Quote URL: " + copiedUrl);
+
+     // ✅ Open in a new tab
+     ((JavascriptExecutor) driver).executeScript("window.open();");
+
+     // Switch focus to the new tab
+     for (String handle : driver.getWindowHandles()) {
+         driver.switchTo().window(handle);
+     }
+
+     // Navigate to the extracted URL
+     driver.get(copiedUrl);
+     Thread.sleep(15000);
+     
+        
+    }
+
+    public void designAssemblydownload() throws AWTException {
+        click(quotetab);
+        searchbar.sendKeys("SW-QT-00001330");
+        Robot rb=new Robot();
+        rb.keyPress(KeyEvent.VK_ENTER);
+        rb.keyRelease(KeyEvent.VK_ENTER);
+
+        try {
+            shortSleep(700);
+            if (expandbutton.isDisplayed()) {
+                shortSleep(300);
+                click(expandbutton);
+                click(viewafterexpand);
+            }
+        } catch (NoSuchElementException ignored) {}
+
+        shortSleep(500);
+        click(viewbutton);
+    }
+
+    public void downloadReports() throws AWTException {
+        click(reportstab);
+        shortSleep(300);
+        click(productionReports);
+        click(designassemblyreport);
+        Robot rb=new Robot();
+        rb.keyPress(KeyEvent.VK_ENTER);
+        rb.keyRelease(KeyEvent.VK_ENTER);
+    }
+}

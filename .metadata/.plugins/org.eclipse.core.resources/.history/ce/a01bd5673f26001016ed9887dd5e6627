@@ -1,0 +1,74 @@
+package POM;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+import AutoConstant.constantInput;
+public class LoginSapphire implements constantInput
+{
+	public WebDriver driver;
+	@FindBy(xpath="//input[@type='text']")
+	private WebElement username;
+	
+	@FindBy(xpath="//input[@type='password']")
+	private WebElement password;
+	
+	@FindBy(xpath="//input[@type='checkbox']")
+	private WebElement checkbox;
+	
+	@FindBy(xpath="//div[@class='w-100 d-grid']")
+	private WebElement loginbutton;
+	
+	@FindBy(xpath="//a[.='Forgot password?']")
+	private WebElement forgotpasswordlink;
+	
+	@FindBy(xpath = "//a[@class='nav-link dropdown-toggle logged-in-user c-pointer']")
+	private WebElement logoutdd;
+	
+	@FindBy(xpath="//a[.='Logout']")
+	private WebElement logout;
+	
+	@FindBy(xpath="//button[.='Close']")
+	private WebElement closepopup;
+	
+	@FindBy(xpath="//span[@class='color-blue text-decoration-underline font-size-18 d-inline-block c-pointer']")
+	private WebElement forcelogin;
+	
+
+	
+	public LoginSapphire (WebDriver driver)
+	{
+		PageFactory.initElements(driver, this); //calls the current class object
+	}
+	
+	public void LoginMethod() throws InterruptedException
+	{
+		forcelogin.click();
+		username.sendKeys(userName);
+		password.sendKeys(Password);
+		checkbox.click();
+		loginbutton.click();
+		Thread.sleep(5000);
+//		username.sendKeys(userName);
+//		password.sendKeys(Password);
+//		checkbox.click();
+//		loginbutton.click();
+		
+		//closepopup.click();
+		
+	}
+	
+	public void LogoutMethod()
+	{
+		logoutdd.click();
+		logout.click();
+		
+	}
+	public void forgotpassword()
+	{
+		forgotpasswordlink.click();
+	}
+	
+}

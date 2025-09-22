@@ -1,0 +1,32 @@
+package Test;
+
+import org.testng.annotations.Test;
+import POM.LoginSapphire;
+import POM.AccountAddNew;
+
+public class NewAccountModule extends baseTest {
+
+	@Test(priority = 1)
+	public void NewAccAdd_Method() throws Exception {
+	    driver.get(baseUrl);
+	   
+	    new LoginSapphire(driver).login(username, password);
+	    AccountAddNew add = new AccountAddNew(driver);
+	    util.Log.section("NewAccAdd", add::NewAccAdd);
+	    add.NewAccAdd();
+	}
+
+	@Test(priority = 2, dependsOnMethods = "NewAccAdd_Method")
+	public void editAccount_Method() throws Exception {
+	    driver.get(baseUrl);
+	    new LoginSapphire(driver).login(username, password);
+	    AccountAddNew add = new AccountAddNew(driver);
+	    util.Log.section("editAccount", add::editAccount);
+	    add.editAccount();
+    
+    // TODO: add a real assertion that proves success, e.g.:
+    // Assert.assertTrue(add.isAccountCreated(), "Account should be created");
+    // driver is closed by baseTest @AfterMethod
+  }
+}
+

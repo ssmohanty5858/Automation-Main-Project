@@ -1,0 +1,339 @@
+package POM;
+
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+
+public class Users 
+{
+	int rdmnumber=(int)(Math.random()*1000);
+	
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+	
+	@FindBy(xpath="(//div[@routerlinkactive='active'])[9]")
+	private WebElement settingsbutton;
+	
+	@FindBy(xpath="//div[.='Users & Permissions']")
+	private WebElement userstab;
+	
+	@FindBy(xpath="//h5[.='Users']")
+	private WebElement users;
+	
+	@FindBy(xpath="//a[contains(text(),'Add user')]")
+	private WebElement adduser;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[1]")
+	private WebElement firstnametextfield;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[2]")
+	private WebElement lastnametextfield;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[3]")
+	private WebElement jobtitletextfield;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[4]")
+	private WebElement phoneno;
+		
+	@FindBy(xpath="(//input[@autocomplete='off'])[5]")
+	private WebElement emailtextfield;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[6]")
+	private WebElement usernametextfield;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[7]")
+	private WebElement reportingmanagerdd;
+	
+	@FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+	private List<WebElement> reportingmanageroptions;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[9]")
+	private WebElement roledd;
+	
+	@FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+	private List<WebElement> rolesddoptions;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[10]")
+	private WebElement passwordtextfield;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[11]")
+	private WebElement confirmpasswordtextfield;
+	
+	@FindBy(xpath="(//input[@name='dataAccessTypeId'])[2]")
+	private WebElement globalradiobutton;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[12]")
+	private WebElement citydd;
+	
+	@FindBy(xpath="(//input[@placeholder='Search...'])[4]")
+	private WebElement searchbarcity;
+	
+	@FindBy(xpath="(//a[@class='dropdown-item c-pointer text-wrap body-1'])[1]")
+	private WebElement ahamadnagar;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[15]")
+	private WebElement timezonedd;
+	
+	@FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+	private List<WebElement> timezoneoptions;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[16]")
+	private WebElement languagedd;
+	
+	@FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+	private List<WebElement> languageddoptions;
+	
+	@FindBy(xpath="//button[.='Add']")
+	private WebElement addbutton;
+	
+	@FindBy(xpath = "//div[@role='alertdialog']")
+	private WebElement alertmessage;
+	
+	@FindBy(xpath="//button[@id='sortButton']")
+	private WebElement sort;
+	
+	@FindBy(xpath="//a[contains(text(),'Username: A to Z')]")
+	private WebElement atoz;
+	
+	@FindBy(xpath="//a[contains(text(),'Username: Z to A')]")
+	private WebElement ztoa;
+	
+	@FindBy(xpath="//a[contains(text(),'Date created: Old to New')]")
+	private WebElement datecreatedoldtonew;
+	
+	@FindBy(xpath="//a[contains(text(),'Date created: New to Old')]")
+	private WebElement datecreatednewtoold;
+	
+	@FindBy(xpath="//div[@class='search position-relative']")
+	private WebElement searchbaruser;
+	
+	@FindBy(xpath="//a[.='Active']")
+	private WebElement activesection;
+	
+	@FindBy(xpath="//a[.='Inactive']")
+	private WebElement inactivesection;
+	
+	@FindBy(xpath="//a[.='All']")
+	private WebElement allsection;
+	
+	@FindBy(xpath="(//div[@class='hovr-area'])[1]")
+	private WebElement actionbutton;
+	
+	@FindBy(xpath="(//a[contains(text(),'Details')])[1]")
+	private WebElement details;
+	
+	@FindBy(xpath="//a[.='User']")
+	private WebElement user;
+	
+	@FindBy(xpath="(//a[contains(text(),'Deactivate')])[1]")
+	private WebElement deactivate;
+	
+	@FindBy(xpath="//button[.='Confirm']")
+	private WebElement confirmdeactivate;
+	
+	@FindBy(xpath="(//a[contains(text(),'Activate')])[1]")
+	private WebElement activate;
+	
+	@FindBy(xpath="//button[@class='close']")
+	private WebElement closebutton;
+	
+	@FindBy(xpath="(//a[.=' Reset password '])[1]")
+	private WebElement resetpassword;
+	
+	@FindBy(xpath="//input[@formcontrolname='newPassword']")
+	private WebElement newpassword;
+	
+	@FindBy(xpath="//button[.='Save']")
+	private WebElement savebutton;
+	
+	@FindBy(xpath="(//a[.=' Allow login '])[1]")
+	private WebElement allowlogin;
+	
+	@FindBy(xpath="//button[.='No']")
+	private WebElement nobutton;
+	
+	@FindBy(xpath="//button[contains(text(),'Show hierarchy')]")
+	private WebElement showhierarchy;
+	
+	
+	public Users (WebDriver driver)
+	{
+		PageFactory.initElements(driver, this);
+	}
+	
+	public void useradd() throws InterruptedException
+	{
+		settingsbutton.click();
+		
+		userstab.click();
+	
+		users.click();
+		
+		adduser.click();
+	
+		firstnametextfield.sendKeys("SSM"+rdmnumber);
+	
+		lastnametextfield.sendKeys("Automation"+rdmnumber+ formattedDate);
+	
+		jobtitletextfield.sendKeys("Software Tester");
+		
+		phoneno.sendKeys("258963"+rdmnumber);
+		
+		emailtextfield.sendKeys("Test@"+rdmnumber);
+		
+		usernametextfield.sendKeys("SSM Automation"+rdmnumber+ formattedDate);
+				
+		passwordtextfield.sendKeys("SSMAutomation@1");
+
+		confirmpasswordtextfield.sendKeys("SSMAutomation@1");
+
+		globalradiobutton.click();
+
+		citydd.click();
+
+		ahamadnagar.click();
+		
+	}
+	
+
+	public void userpage() throws InterruptedException
+	{
+		
+
+		addbutton.click();
+//		settingsbutton.click();
+//
+//		users.click();
+//	
+		sort.click();
+
+		atoz.click();
+
+		searchbaruser.sendKeys("SSM");
+	
+		searchbaruser.sendKeys(Keys.ENTER);
+
+		activesection.click();
+	
+		inactivesection.click();
+		
+		allsection.click();
+		
+		actionbutton.click();
+		
+		details.click();
+	
+		user.click();
+		
+		actionbutton.click();
+	
+		deactivate.click();
+		
+		confirmdeactivate.click();
+		Thread.sleep(1000);
+		closebutton.click();
+		
+		actionbutton.click();
+	
+		activate.click();
+		Thread.sleep(1000);
+		confirmdeactivate.click();
+		Thread.sleep(2000);
+		actionbutton.click();
+		
+		resetpassword.click();
+	
+		newpassword.sendKeys("Ss@2581895");
+		Thread.sleep(2000);
+		savebutton.click();
+		Thread.sleep(2000);
+		showhierarchy.click();
+	}
+	
+	 public List<String> reportingManagerOptions() 
+	 {
+	    reportingmanagerdd.click();
+		// WebDriverWait wait=new WebDriverWait(driver, 10);
+		 List<String> options=new ArrayList<>();
+			
+			
+			for (WebElement option : reportingmanageroptions) 
+			{
+				if (option.getText().equals("Gourav Singhal")) 
+	            {
+	                option.click();
+	                break;  // Exit loop once the desired option is clicked
+	            }
+	        
+	        }
+			 return options;
+	 }
+	
+
+	 public List<String> roleddOptions() 
+	 {
+	    roledd.click();
+		// WebDriverWait wait=new WebDriverWait(driver, 10);
+		 List<String> options=new ArrayList<>();
+			
+			
+			for (WebElement option : rolesddoptions) 
+			{
+				if (option.getText().equals("Operations Head")) 
+	            {
+	                option.click();
+	                break;  // Exit loop once the desired option is clicked
+	            }
+	        
+	        }
+			 return options;
+	 }
+	 
+	 public List<String> timezoneddOptions() 
+	 {
+	    timezonedd.click();
+		// WebDriverWait wait=new WebDriverWait(driver, 10);
+		 List<String> options=new ArrayList<>();
+			
+			
+			for (WebElement option : timezoneoptions) 
+			{
+				if (option.getText().equals("India Standard Time")) 
+	            {
+	                option.click();
+	                break;  // Exit loop once the desired option is clicked
+	            }
+	        
+	        }
+			 return options;
+	 }
+	 
+	 public List<String> languageddOptions() 
+	 {
+	    languagedd.click();
+		// WebDriverWait wait=new WebDriverWait(driver, 10);
+		 List<String> options=new ArrayList<>();
+			
+			
+			for (WebElement option : languageddoptions) 
+			{
+				if (option.getText().equals("English")) 
+	            {
+	                option.click();
+	                break;  // Exit loop once the desired option is clicked
+	            }
+	        
+	        }
+			 return options;
+	 }
+}

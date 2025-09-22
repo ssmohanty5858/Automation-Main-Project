@@ -1,0 +1,133 @@
+// baseTest.java
+package Test;
+
+import org.openqa.selenium.Dimension;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import org.testng.ITestResult;          // ★ ADDED
+import org.testng.Reporter;            // ★ ADDED
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+
+import util.Log;
+import util.NetworkConsoleRecorder;
+
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.*;                 // ★ ADDED
+import java.time.Duration;
+
+public class baseTest extends baseCred {
+    protected WebDriver driver;
+    protected NetworkConsoleRecorder recorder;
+    protected WebDriverWait wait;
+
+    /** True only if this class actually started the driver. */
+    private boolean startedHere = false;
+
+    // ★ ADDED: keep each test's raw log file path
+    private static final ThreadLocal<Path> RAW_LOG = new ThreadLocal<>();
+
+    @BeforeClass(alwaysRun = true)
+    public void setupClass() throws IOException {
+      Log.info("SETUP", "Starting WebDriver if needed");
+      if (DriverManager.get() == null) {
+        DriverManager.start();
+        startedHere = true;
+      }
+      driver = DriverManager.get();
+
+      driver.manage().timeouts().implicitlyWait(Duration.ZERO);
+      try { driver.manage().window().setSize(new Dimension(1920,1080)); } catch (Exception ignored){}
+      
+      String ts = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+              .format(java.time.LocalDateTime.now());
+      Path classLog = java.nio.file.Paths.get("logs", getClass().getSimpleName() + "_" + ts + ".html");
+      java.nio.file.Files.createDirectories(classLog.getParent());
+
+      recorder = new util.NetworkConsoleRecorder(driver, classLog);
+      recorder.setNetworkFilter(e -> true);
+      recorder.setSettleMillis(2500);
+
+      // Make this recorder available to Log.section()/capture() in this thread
+      util.Log.setRecorder(recorder);
+
+      wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+      Log.info("SETUP", "Driver ready. URL=" + driver.getCurrentUrl());
+    }
+    
+
+    @BeforeMethod(alwaysRun = true)
+    public void setUp(Method method) throws IOException {
+      util.Log.beginTest(method);
+      driver = new ChromeDriver();
+
+      try {
+          String ts = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                       .format(java.time.LocalDateTime.now());
+          String className = method.getDeclaringClass().getSimpleName();
+          String testName  = method.getName();
+          Path logFile = Paths.get("logs", className + "_" + testName + "_" + ts + ".txt");
+          Files.createDirectories(logFile.getParent());
+
+          // remember for report attachment
+          RAW_LOG.set(logFile);                             // ★ ADDED
+          recorder = new util.NetworkConsoleRecorder(driver, logFile);
+
+          // ✅ make this recorder available to Log in this test thread
+          util.Log.setRecorder(recorder);
+
+
+          // ✅ capture all types while you validate (you can narrow later)
+          recorder.setNetworkFilter(e -> true);
+
+          // ✅ give network time to finish after each action
+          recorder.setSettleMillis(2500);
+ 
+          util.Log.info("SETUP", "Network/Console log: " + logFile.toAbsolutePath());
+
+        } catch (Exception e) {
+          util.Log.error("SETUP", "Failed to initialize NetworkConsoleRecorder", e);
+        }
+    }
+
+    // ★ CHANGED: accept ITestResult so we can attach a link into the report
+    @AfterMethod(alwaysRun = true)
+    public void tearDown(ITestResult result) {
+        try {
+            if (driver != null) driver.quit();
+
+            // attach the TXT into test-output and add a clickable link
+            Path raw = RAW_LOG.get();
+            if (raw != null && Files.isRegularFile(raw)) {
+                Path artifactsDir = Paths.get("test-output", "artifacts");
+                Files.createDirectories(artifactsDir);
+
+                String fileName  = raw.getFileName().toString();
+                Path reportLog   = artifactsDir.resolve(fileName);
+                Files.copy(raw, reportLog, StandardCopyOption.REPLACE_EXISTING);
+
+                String rel = "artifacts/" + fileName;
+
+                // link in the TestNG report (opens a new tab)
+                Reporter.log(
+                    "Network/Console Log: <a href='" +
+                    rel.replace("\\", "/") +
+                    "' target='_blank'>" + fileName + "</a>"
+                );
+
+                // also stash for any custom reporter that reads attributes
+                result.setAttribute("networkLogPath", rel);
+            }
+        } catch (Exception attachErr) {
+            util.Log.error("REPORT", "Failed to attach network log to report", attachErr);
+        } finally {
+            util.Log.endTest();
+            recorder = null;
+            RAW_LOG.remove(); // cleanup TL
+        }
+    }
+}

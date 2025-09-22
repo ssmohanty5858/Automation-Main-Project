@@ -1,0 +1,61 @@
+package util;
+
+import org.testng.ITestResult;
+import org.testng.Reporter;
+
+import java.io.File;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
+
+public final class ReporterConsoleBridge {
+  private ReporterConsoleBridge() {}
+
+  public static void install() {
+    final PrintStream originalOut = System.out;
+
+    OutputStream tee = new OutputStream() {
+      private final StringBuilder buf = new StringBuilder();
+      @Override public void write(int b) {
+        char c = (char) b;
+        buf.append(c);
+        if (c == '\n') {
+          String line = buf.toString();
+          originalOut.print(line);                        // keep console
+          Reporter.log(escape(line), false);              // into TestNG logs (picked by our reporter)
+          buf.setLength(0);
+        }
+      }
+      private String escape(String s) {
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+      }
+    };
+
+    System.setOut(new PrintStream(tee, true, StandardCharsets.UTF_8));
+  }
+  public static void logArtifact(String label, java.nio.file.Path file) {
+	  if (file == null) return;
+
+	  String href;
+	  try {
+	    java.nio.file.Path outRoot = java.nio.file.Paths
+	        .get(System.getProperty("testng.report.output", "test-output"))
+	        .toAbsolutePath();
+	    java.nio.file.Path abs = file.toAbsolutePath();
+	    java.nio.file.Path rel = abs.startsWith(outRoot) ? outRoot.relativize(abs) : abs;
+	    href = rel.toString().replace(java.io.File.separatorChar, '/');  // logs/...
+	  } catch (IllegalArgumentException e) {
+	    href = file.toUri().toString();  // fallback: file:///… if outside test-output
+	  }
+
+	  org.testng.Reporter.setEscapeHtml(false);
+	  org.testng.Reporter.log(
+	      "<a target='_blank' rel='noopener' href='" + href + "'>"
+	      + (label == null || label.isBlank() ? "artifact" : label)
+	      + "</a>", true);
+	}
+}

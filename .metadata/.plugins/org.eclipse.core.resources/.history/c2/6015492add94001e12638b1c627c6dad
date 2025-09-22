@@ -1,0 +1,214 @@
+package POM;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+//import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.testng.Assert;
+
+public class CreateOpportunity 
+{
+
+	int rdmnumber=(int)(Math.random()*1000);
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+
+	public WebDriver driver;
+
+	@FindBy(xpath = "//li[@tooltip='Opportunity']")
+	private WebElement opportunitytab;
+
+	@FindBy(xpath = "//a[contains(text(),' Create opportunity')]")
+	private WebElement createopportunity;
+
+	@FindBy(xpath = "//input[@formcontrolname='opportunityName']")
+	private WebElement projectname;
+
+	@FindBy(xpath = "//input[@formcontrolname='contactFirstName']")
+	private WebElement firstname;
+
+	@FindBy(xpath = "//input[@formcontrolname='contactNoPrimary']")
+	private WebElement phonenumber;
+
+	@FindBy(xpath = "//input[@formcontrolname='contactEmailId']")
+	private WebElement emailid;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[1]")
+	private WebElement citydd;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[1]")
+	private WebElement searchbarcity;
+
+	@FindBy(xpath = "(//div[@class='dropdown-items'])[1]")
+	private WebElement cuttack;
+
+	@FindBy(xpath = "(//a[@class='nav-link'])[1]")
+	private WebElement officialinfo;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='shipToAccountId']")
+	private WebElement billto;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[4]")
+	private WebElement searchbarbillto;
+
+	@FindBy(xpath = "(//a[contains(text(),'12')] )[4]")
+	private WebElement demo;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[7]")
+	private WebElement managedby;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[6]")
+	private WebElement searchbarmanagedby;
+
+	@FindBy(xpath = "//a[contains(text(),'Gourav Singhal')]")
+	private WebElement gourav;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='marketingPartnerAccountId']")
+	private WebElement marketingpartnerdd;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[5]")
+	private WebElement searchbarmarketingpartner;
+
+	@FindBy(xpath = "(//a[contains(text(),'12')])[14]")
+	private WebElement npk;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='opportunitySourcesId']")
+	private WebElement opportunitysource;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[8]")
+	private WebElement searchbaroppsize;
+
+	@FindBy(xpath = "//a[contains(text(),'Architect')]")
+	private WebElement architect;
+
+	@FindBy(xpath = "//input[@formcontrolname='opportunityValue']")
+	private WebElement estimatedoppvalue;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[10]")
+	private WebElement oppcategory;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[9]")
+	private WebElement searchbaroppcategory;
+
+	@FindBy(xpath = "(//div[@class='dropdown-items'])[9]")
+	private WebElement category1;
+
+	@FindBy(xpath = "(//div[@class='tag-group form-control'])[1]")
+	private WebElement opportunitysize;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[10]")
+	private WebElement searchbaroppsize1;
+
+	@FindBy(xpath = "(//div[@class='dropdown-items'])[10]")
+	private WebElement large;
+
+	@FindBy(xpath = "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[3]")
+	private WebElement projecttype;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[12]")
+	private WebElement searchbarprojecttype;
+
+	@FindBy(xpath = "(//div[@class='dropdown-items'])[12]")
+	private WebElement newbuilt;
+
+	@FindBy(xpath = "(//app-eva-multiselect[@formcontrolname='opportunityTag'])[5]")
+	private WebElement cliienttype;
+
+	@FindBy(xpath = "(//input[@placeholder='Search...'])[14]")
+	private WebElement searchbarclienttype;
+
+	@FindBy(xpath = "(//div[@class='dropdown-items'])[14]")
+	private WebElement builder;
+
+	@FindBy(xpath = "(//button[@type='button'])[12]")
+	private WebElement savebutton;
+
+	@FindBy(xpath = "//div[@role='alertdialog']")
+	private WebElement alertmessage;
+
+	public CreateOpportunity(WebDriver driver)
+
+	{
+		PageFactory.initElements(driver, this);
+	}
+
+	public void CreateOpp() throws InterruptedException
+
+	{
+		
+		opportunitytab.click();
+		
+		createopportunity.click();
+		
+		projectname.sendKeys("SSM Automation"+rdmnumber+ formattedDate);
+		
+		firstname.sendKeys("SSM"+rdmnumber);
+		
+		phonenumber.sendKeys("258963314"+rdmnumber);
+		
+		emailid.sendKeys("opp@12366"+rdmnumber);
+		
+		citydd.click();
+		
+		searchbarcity.sendKeys("Bhubaneswar");
+		
+		cuttack.click();
+		Thread.sleep(2000);
+		officialinfo.click();
+		
+		billto.click();
+		
+		searchbarbillto.sendKeys("12");
+		
+		demo.click();
+		
+		marketingpartnerdd.click();
+		
+		searchbarmarketingpartner.sendKeys("12");
+		
+		npk.click();
+		
+		estimatedoppvalue.sendKeys("2581" + rdmnumber);
+		
+		opportunitysource.click();
+		
+		architect.click();
+	
+		opportunitysize.click();
+	
+		searchbaroppsize1.sendKeys("Large");
+		
+		large.click();
+		
+		projecttype.click();
+		
+		searchbarprojecttype.sendKeys("new");
+	
+		newbuilt.click();
+		
+		// newbuilt.click();
+		cliienttype.click();
+		
+		searchbarclienttype.sendKeys("builder");
+		
+		builder.click();
+		
+		savebutton.click();
+	}
+
+	public void alertconfirmation()
+
+	{
+		String actualmsg = alertmessage.getText();
+		String expectedmsg = "Data saved successfully";
+		Assert.assertEquals(actualmsg, expectedmsg);
+		System.out.println(actualmsg);
+
+	}
+
+}

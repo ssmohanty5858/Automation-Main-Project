@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;RunWithoutEclipse/drivers/chromedriver.exe&apos;" deleteContents="false" description="Delete resource &apos;RunWithoutEclipse/drivers/chromedriver.exe&apos;" element1="/RunWithoutEclipse/drivers/chromedriver.exe" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1758423595346"/>
+</session>

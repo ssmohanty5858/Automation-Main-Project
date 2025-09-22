@@ -1,0 +1,1044 @@
+package util;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.*;
+import java.nio.file.*;
+import java.io.IOException;
+import java.util.Comparator;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.nio.file.attribute.FileTime;
+import java.time.Duration;
+import java.util.*;
+import java.util.function.Function;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
+import java.io.*;
+
+import java.io.BufferedWriter;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import java.io.File;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.awt.AWTException;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
+
+
+/**
+ * Lightweight UI helper + CSV & download utilities.
+ * No external logging dependencies – prints to stdout.
+ */
+public class UIActions {
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final Duration defaultTimeout = Duration.ofSeconds(20);
+
+    public UIActions(WebDriver driver) {
+        this.driver = driver;
+        this.wait = new WebDriverWait(driver, defaultTimeout);
+    }
+
+    // ---------- Waiters ----------
+    public WebElement visible(WebElement el, String action) {
+        try {
+            WebElement v = wait.until(ExpectedConditions.visibilityOf(el));
+           // System.out.println("Visible OK: " + action);
+            return v;
+        } catch (TimeoutException e) {
+            //System.out.println("Visible TIMEOUT: " + action);
+            throw e;
+        }
+    }
+
+    public WebElement clickable(WebElement el, String action) {
+        try {
+            WebElement c = wait.until(ExpectedConditions.elementToBeClickable(el));
+            //System.out.println("Clickable OK: " + action);
+            return c;
+        } catch (TimeoutException e) {
+            //System.out.println("Clickable TIMEOUT: " + action);
+            throw e;
+        }
+    }
+
+    public WebElement visible(By by, String action) {
+        try {
+            WebElement v = wait.until(ExpectedConditions.visibilityOfElementLocated(by));
+            //System.out.println("Visible OK: " + by);
+            return v;
+        } catch (TimeoutException e) {
+            //System.out.println("Visible TIMEOUT: " + by);
+            throw e;
+        }
+    }
+
+    public List<WebElement> visibleAll(By by, String action) {
+        try {
+            List<WebElement> list = wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(by));
+           // System.out.println("Visible all OK: count=" + list.size());
+            return list;
+        } catch (TimeoutException e) {
+          //  System.out.println("Visible all TIMEOUT: " + by);
+            throw e;
+        }
+    }
+
+    // ---------- Core actions ----------
+    public void click(WebElement el, String action) {
+        try {
+            WebElement c = clickable(el, action);
+            scrollIntoView(c);
+            c.click();
+            System.out.println("Clicked on " + action);
+        } catch (Exception e) {
+            System.out.println("Click failed : " + action + " -> " + e);
+            jsClick(el, action + " (JS)");
+        }
+    }
+
+    public void click(By by, String action) {
+        try {
+            WebElement el = wait.until(ExpectedConditions.elementToBeClickable(by));
+            scrollIntoView(el);
+            el.click();
+            System.out.println("Clicked on " + by);
+        } catch (Exception e) {
+            System.out.println("Click failed: " + by + e);
+            WebElement el2 = driver.findElement(by);
+            jsClick(el2, action + " (JS)");
+        }
+    }
+
+    public void type(WebElement el, String text, String action) {
+        WebElement v = visible(el, action);
+        try { v.clear(); } catch (Exception ignored) {}
+        v.sendKeys(text);
+        System.out.println("Data entered '" + text + "' into " + action);
+    }
+
+    public void sendKeys(WebElement el, CharSequence keys, String action) {
+        visible(el, action).sendKeys(keys);
+        System.out.println("Data entered " + keys + " -> " + action);
+    }
+
+    public void hover(WebElement el, String action) {
+        try {
+            new Actions(driver).moveToElement(visible(el, action)).perform();
+            System.out.println("Hover " + action);
+        } catch (Exception e) {
+            System.out.println("Hover failed " + action + " -> " + e);
+        }
+    }
+
+    public void scrollIntoView(WebElement el) {
+        try {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'})", el);
+        } catch (Exception ignored) {}
+    }
+
+    public void jsClick(WebElement el, String action) {
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click()", el);
+        System.out.println("jsClick " + action);
+    }
+
+    public <T> T until(Function<WebDriver, T> condition) {
+        return wait.until(condition);
+    }
+
+    public void scrollCenter(WebElement el, String action) {
+        try {
+            wait.until(ExpectedConditions.visibilityOf(el));
+            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", el);
+            System.out.println("ScrollCenter " + action);
+        } catch (Exception e) {
+            throw e;
+        }
+    }
+
+    // ---------- FILE UPLOAD ----------
+    public void uploadFile(WebElement input, Path absoluteFile, String action) {
+        try {
+            if (!Files.exists(absoluteFile)) {
+                throw new IllegalArgumentException("File not found: " + absoluteFile);
+            }
+
+            // If running remotely (Grid), enable file detector so sendKeys can upload from local FS
+            if (driver instanceof org.openqa.selenium.remote.RemoteWebDriver) {
+                org.openqa.selenium.remote.RemoteWebDriver rwd = (org.openqa.selenium.remote.RemoteWebDriver) driver;
+                try {
+                    rwd.setFileDetector(new org.openqa.selenium.remote.LocalFileDetector());
+                } catch (UnsupportedOperationException ignored) { /* some drivers don't support */ }
+            }
+
+            // Make sure it can receive sendKeys
+            if (!input.isDisplayed() || !input.isEnabled()) {
+                ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].style.display='block';" +
+                    "arguments[0].style.visibility='visible';" +
+                    "arguments[0].style.opacity=1;" +
+                    "arguments[0].style.width='1px'; arguments[0].style.height='1px';",
+                    input
+                );
+            }
+
+            scrollIntoView(input);
+
+            // sendKeys with absolute path
+            input.sendKeys(absoluteFile.toString());
+            System.out.println("UploadFile " + absoluteFile + " (" + action + ")");
+
+            // Some frameworks only react after a 'change' event
+            try {
+                ((JavascriptExecutor) driver).executeScript(
+                    "if (arguments[0]) {" +
+                    "  const ev = new Event('change', {bubbles:true}); arguments[0].dispatchEvent(ev);" +
+                    "}", input);
+            } catch (StaleElementReferenceException ignored) {
+                // If it’s already replaced, that's actually a good sign.
+            }
+
+            // Wait until the upload is registered
+            wait.pollingEvery(Duration.ofMillis(250)).withTimeout(defaultTimeout)
+                .until(d -> {
+                    try {
+                        // Prefer modern check via files API
+                        Object hasFiles = ((JavascriptExecutor) d).executeScript(
+                            "try { return arguments[0] && arguments[0].files && arguments[0].files.length > 0; } catch(e){ return false; }",
+                            input
+                        );
+                        if (Boolean.TRUE.equals(hasFiles)) return true;
+
+                        // Fallback to value check
+                        String v = input.getAttribute("value");
+                        return v != null && !v.isBlank(); // often "C:\\fakepath\\file.ext"
+                    } catch (StaleElementReferenceException se) {
+                        // Many UI libs replace <input type=file> immediately after selection.
+                        // If we got stale *after* sendKeys, treat as success so we can move on.
+                        return true;
+                    }
+                });
+
+        } catch (Exception e) {
+            throw new RuntimeException("Upload failed: " + absoluteFile, e);
+        }
+    }
+
+    
+    
+
+    // ================= CSV UTILITIES =================
+
+    private static String t(String s){ return s==null ? "" : s.trim(); }
+    private static String normUrl(String s){ return t(s).replaceAll("/+$","").toLowerCase(); }
+
+    // CSV line parser (supports double quotes)
+    private static String[] parseCsvLine(String line) {
+        List<String> list = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                if (inQuotes && i+1 < line.length() && line.charAt(i+1) == '"') { sb.append('"'); i++; }
+                else inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                list.add(sb.toString()); sb.setLength(0);
+            } else {
+                sb.append(c);
+            }
+        }
+        list.add(sb.toString());
+        return list.toArray(new String[0]);
+    }
+
+    // Robust opener (works even if Excel locks the file)
+    private static BufferedReader openCsvForRead(Path csvPath) throws IOException {
+        Path p = csvPath.toAbsolutePath();
+        if (!Files.exists(p)) throw new NoSuchFileException("CSV not found: " + p);
+        if (!Files.isRegularFile(p)) throw new IOException("Not a regular file: " + p);
+        try {
+            return new BufferedReader(new InputStreamReader(Files.newInputStream(p), StandardCharsets.UTF_8));
+        } catch (AccessDeniedException locked) {
+            Path tmp = Files.createTempFile("csv_copy_", ".csv");
+            Files.copy(p, tmp, StandardCopyOption.REPLACE_EXISTING);
+            return new BufferedReader(new InputStreamReader(Files.newInputStream(tmp), StandardCharsets.UTF_8));
+        }
+    }
+
+    /** Return all quote codes for a given credential (case-insensitive). CSV columns: user,pass,url,quote */
+    public List<String> findQuoteCodesFromCsv(Path csvPath, String username, String password, String baseUrl) {
+        List<String> codes = new ArrayList<>();
+        String cu = t(username);
+        String cp = t(password);
+        String cb = normUrl(baseUrl);
+
+        try (BufferedReader br = openCsvForRead(csvPath)) {
+            String line; int row = 0;
+            while ((line = br.readLine()) != null) {
+                row++;
+                if (line.isBlank()) continue;
+                String[] a = parseCsvLine(line);
+                String u = a.length>0 ? t(a[0]) : "";
+                String p = a.length>1 ? t(a[1]) : "";
+                String b = a.length>2 ? t(a[2]) : "";
+                String q = a.length>3 ? t(a[3]) : "";
+
+                // header?
+                if (row==1 && u.equalsIgnoreCase("username") && p.equalsIgnoreCase("password")) continue;
+                // stop condition
+                if (u.isEmpty() && p.isEmpty()) break;
+
+                if (u.equalsIgnoreCase(cu) && p.equalsIgnoreCase(cp) &&
+                        (b.isEmpty() || cb.isEmpty() || normUrl(b).equals(cb)) &&
+                        !q.isEmpty()) {
+                    codes.add(q);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed reading CSV: " + csvPath, e);
+        }
+        return codes;
+    }
+
+    public Optional<String> findFirstQuoteCodeFromCsv(Path csvPath, String username, String password, String baseUrl) {
+        List<String> all = findQuoteCodesFromCsv(csvPath, username, password, baseUrl);
+        return all.isEmpty() ? Optional.empty() : Optional.of(all.get(0));
+    }
+
+    public void pasteCodeIntoSearch(WebElement searchInputEl, String code) {
+        WebElement input = visible(searchInputEl, "Quote search");
+        input.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+        input.sendKeys(Keys.DELETE);
+        input.sendKeys(code);
+        input.sendKeys(Keys.ENTER);
+    }
+
+    public boolean searchFirstQuoteFromCsv(WebElement searchInputEl, Path csvPath,
+                                           String username, String password, String baseUrl) {
+        Optional<String> code = findFirstQuoteCodeFromCsv(csvPath, username, password, baseUrl);
+        if (code.isEmpty()) return false;
+        pasteCodeIntoSearch(searchInputEl, code.get());
+        return true;
+    }
+
+    public int searchAllQuotesFromCsv(WebElement searchInputEl, Path csvPath,
+                                      String username, String password, String baseUrl, long delayMs) {
+        List<String> codes = findQuoteCodesFromCsv(csvPath, username, password, baseUrl);
+        for (String c : codes) {
+            pasteCodeIntoSearch(searchInputEl, c);
+            if (delayMs > 0) try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
+        }
+        return codes.size();
+    }
+
+    // ---------- Downloads ----------
+    public Path getDefaultDownloadDir() {
+        Path p = Paths.get("downloads").toAbsolutePath();
+        try { Files.createDirectories(p); } catch (IOException ignored) {}
+        return p;
+    }
+    
+ // OS default downloads as a fallback
+    public Path getOsDownloadsDir() {
+        String home = System.getProperty("user.home");
+        Path p = Paths.get(home, "Downloads");
+        return Files.exists(p) ? p : getDefaultDownloadDir();
+    }
+    
+    /** Tell Chromium (Chrome/Edge) to download to 'dir' without prompting. Safe to call anytime. */
+    public void ensureBrowserDownloadsTo(Path dir) {
+        try { Files.createDirectories(dir); } catch (IOException ignored) {}
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("behavior", "allow");
+        params.put("downloadPath", dir.toAbsolutePath().toString());
+
+        try {
+            if (driver instanceof ChromeDriver) {
+                // Try Browser.setDownloadBehavior first (newer Chromium)
+                ((ChromeDriver) driver).executeCdpCommand("Browser.setDownloadBehavior", params);
+            } else if (driver instanceof EdgeDriver) {
+                ((EdgeDriver) driver).executeCdpCommand("Browser.setDownloadBehavior", params);
+            } else if (driver instanceof HasDevTools) {
+                // Some other ChromiumDriver
+                ((HasDevTools) driver).getDevTools().createSession();
+                ((ChromeDriver) driver).executeCdpCommand("Browser.setDownloadBehavior", params);
+            }
+        } catch (Exception ignore) {
+            // Fallback for older Chromium: Page.setDownloadBehavior with the same params
+            try {
+                if (driver instanceof ChromeDriver) {
+                    ((ChromeDriver) driver).executeCdpCommand("Page.setDownloadBehavior", params);
+                } else if (driver instanceof EdgeDriver) {
+                    ((EdgeDriver) driver).executeCdpCommand("Page.setDownloadBehavior", params);
+                }
+            } catch (Exception e) {
+                // Don't crash the test—downloads may still land in OS Downloads; your
+                // wait/move helper will try that folder as a fallback.
+                System.out.println("[downloads] CDP download behavior not set: " + e.getMessage());
+            }
+        }
+    }
+
+    private static String safeName(String s) {
+        return s.replaceAll("[\\\\/:*?\"<>|]+", "_");
+    }
+
+    /** Wait for newest PDF to finish and move it to destDir/finalName.pdf */
+    public Path waitAndMoveLatestPdf(Path downloadDir, Path destDir, String finalName, Duration timeout) {
+        long end = System.currentTimeMillis() + timeout.toMillis();
+        try {
+            Files.createDirectories(destDir);
+            Path chosen = null;
+            while (System.currentTimeMillis() < end) {
+                Path latest = null; FileTime latestT = null;
+                try (DirectoryStream<Path> ds = Files.newDirectoryStream(downloadDir, "*.{pdf,PDF}")) {
+                    for (Path p : ds) {
+                        if (Files.isDirectory(p)) continue;
+                        FileTime t = Files.getLastModifiedTime(p);
+                        if (latest == null || t.compareTo(latestT) > 0) { latest = p; latestT = t; }
+                    }
+                }
+                if (latest != null) {
+                    long s1 = Files.size(latest);
+                    Thread.sleep(700);
+                    long s2 = Files.size(latest);
+                    if (s1 == s2) { chosen = latest; break; }
+                }
+                Thread.sleep(400);
+            }
+            if (chosen == null) throw new RuntimeException("No finished PDF found in " + downloadDir);
+
+            String name = finalName.endsWith(".pdf") ? finalName : (finalName + ".pdf");
+            Path dest = destDir.resolve(safeName(name));
+            return Files.move(chosen, dest, StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to capture PDF from " + downloadDir + " -> " + destDir, e);
+        }
+    }
+    
+    /** Per-credential round-robin index so parallel runs don't all take the first code. */
+    private static final ConcurrentHashMap<String, AtomicInteger> NEXT_IDX = new ConcurrentHashMap<>();
+
+    private static String credKey(String u, String p, String b) {
+        // normalize a stable key for the same credentials
+        String nu = u == null ? "" : u.trim().toLowerCase();
+        String np = p == null ? "" : p.trim().toLowerCase();
+        String nb = b == null ? "" : b.trim().replaceAll("/+$","").toLowerCase();
+        return nu + "\n" + np + "\n" + nb;
+    }
+
+    /**
+     * Find ALL quote codes for (username,password[,baseUrl]) in csvPath and paste the
+     * NEXT one for this credential (0,1,2,...) in a thread-safe way.
+     * Returns true if a code was pasted, false if none left.
+     */
+    public boolean searchNextQuoteFromCsv(WebElement searchInputEl,
+                                          java.nio.file.Path csvPath,
+                                          String username,
+                                          String password,
+                                          String baseUrl) {
+        java.util.List<String> codes = findQuoteCodesFromCsv(csvPath, username, password, baseUrl);
+        if (codes.isEmpty()) return false;
+
+        String key = credKey(username, password, baseUrl);
+        AtomicInteger ctr = NEXT_IDX.computeIfAbsent(key, k -> new AtomicInteger(0));
+        int idx = ctr.getAndIncrement(); // each parallel run gets a different index (0,1,2,…)
+
+        if (idx >= codes.size()) return false; // no more codes for this user
+
+        String code = codes.get(idx);
+        pasteCodeIntoSearch(searchInputEl, code);
+        return true;
+}
+    
+
+
+    /** Find a new finished PDF in 'dir' after 'sinceMs'. Accepts .crdownload, waits until it finishes. */
+    public Path waitForNewPdf(Path dir, long sinceMs, long timeoutMs) {
+        long end = System.currentTimeMillis() + timeoutMs;
+
+        try { Files.createDirectories(dir); } catch (IOException ignored) {}
+
+        while (System.currentTimeMillis() < end) {
+            try {
+                Path newest = Files.list(dir)
+                    .filter(p -> {
+                        String n = p.getFileName().toString().toLowerCase();
+                        return n.endsWith(".pdf") || n.endsWith(".crdownload");
+                    })
+                    .filter(p -> {
+                        try { return Files.getLastModifiedTime(p).toMillis() >= sinceMs - 2000; }
+                        catch (IOException e) { return false; }
+                    })
+                    .max(Comparator.comparingLong(p -> {
+                        try { return Files.getLastModifiedTime(p).toMillis(); }
+                        catch (IOException e) { return Long.MIN_VALUE; }
+                    }))
+                    .orElse(null);
+
+                if (newest != null) {
+                    // If it's a partial (.crdownload), wait until it stabilizes and disappears
+                    String name = newest.getFileName().toString();
+                    if (name.toLowerCase().endsWith(".crdownload")) {
+                        long s1 = Files.size(newest);
+                        Thread.sleep(500);
+                        long s2 = Files.size(newest);
+                        if (s1 == s2) {
+                            // if Chromium already renamed to .pdf we’ll find that next loop
+                        }
+                    } else {
+                        // It’s a .pdf; ensure the size is stable
+                        long s1 = Files.size(newest);
+                        Thread.sleep(400);
+                        long s2 = Files.size(newest);
+                        if (s1 == s2) return newest;
+                    }
+                }
+            } catch (Exception ignored) {}
+            try { Thread.sleep(250); } catch (InterruptedException ignored) {}
+        }
+        throw new RuntimeException("No new PDF appeared in " + dir + " within " + timeoutMs + " ms");
+    }
+
+    /** Move file into quote folder and rename. */
+    public Path moveAndRename(Path src, Path targetDir, String targetFileName) {
+        try {
+            Files.createDirectories(targetDir);
+            Path dest = targetDir.resolve(targetFileName);
+            return Files.move(src, dest, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to move " + src + " -> " + targetDir, e);
+        }
+    }
+
+    /** Try project downloads first; if nothing shows up, fallback to OS Downloads. */
+    public Path saveLatestDownloadedPdf(Path projectDownloadsDir,
+                                        Path quoteFolder,
+                                        String fileName,
+                                        long sinceMs,
+                                        long timeoutMs) {
+        try {
+            Path src = waitForNewPdf(projectDownloadsDir, sinceMs, timeoutMs);
+            return moveAndRename(src, quoteFolder, fileName);
+        } catch (RuntimeException primary) {
+            Path os = getOsDownloadsDir();
+            if (os.equals(projectDownloadsDir)) throw primary;
+            // Try OS downloads as a fallback
+            Path src = waitForNewPdf(os, sinceMs, timeoutMs);
+            return moveAndRename(src, quoteFolder, fileName);
+        }
+    }
+    
+    ///////////////////PDF Reader/////////////////////////////
+    
+    /** Read full text of a PDF as normalized string (spaces collapsed). */
+    /** Read full text of a PDF, keeping line breaks but normalizing spaces. */
+    /** Read full text of a PDF as-is (keep line breaks, only normalize CRLF). */
+    public String readPdfText(Path pdf) {
+        try (PDDocument doc = PDDocument.load(pdf.toFile())) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            String raw = stripper.getText(doc);
+            // keep the report readable: preserve newlines, trim ends
+            return raw.replace("\r\n", "\n").replace("\r", "\n").trim();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read PDF text: " + pdf, e);
+        }
+    }
+
+
+    
+    public static final class DiffSummary {
+        public final boolean identical;
+        public final List<String> missingTokens;  // tokens in BEFORE but not in AFTER
+        public final Path diffHtml;               // path to generated HTML
+        public DiffSummary(boolean identical, List<String> missingTokens, Path diffHtml) {
+            this.identical = identical;
+            this.missingTokens = missingTokens;
+            this.diffHtml = diffHtml;
+        }
+    }
+    
+    /** Tokenize to alnum "words" for quick set comparisons. */
+    private static List<String> tokenize(String s) {
+        List<String> out = new ArrayList<>();
+        StringBuilder w = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLetterOrDigit(c)) {
+                w.append(c);
+            } else {
+                if (w.length() > 0) { out.add(w.toString()); w.setLength(0); }
+                out.add(String.valueOf(c)); // keep punctuation/space so we can rebuild with highlights
+            }
+        }
+        if (w.length() > 0) out.add(w.toString());
+        return out;
+    }
+    
+    /** Build an HTML with word-level highlighting of differences (side-by-side). */
+    private static void writeDiffHtml(String before, String after, Path outHtml) {
+        try {
+            Files.createDirectories(outHtml.getParent());
+
+            // memberships
+            Set<String> wordsBefore = new HashSet<>();
+            Set<String> wordsAfter  = new HashSet<>();
+            for (String t : before.split("[^A-Za-z0-9]+")) if (t.length()>2) wordsBefore.add(t.toLowerCase());
+            for (String t : after.split("[^A-Za-z0-9]+"))  if (t.length()>2) wordsAfter.add(t.toLowerCase());
+
+            // token streams (keep punctuation to preserve flow)
+            List<String> tb = tokenize(before);
+            List<String> ta = tokenize(after);
+
+            StringBuilder hb = new StringBuilder();
+            for (String tok : tb) {
+                if (tok.matches("[A-Za-z0-9]{3,}")) {
+                    boolean missing = !wordsAfter.contains(tok.toLowerCase());
+                    if (missing) hb.append("<span class='miss' title='missing in AFTER'>").append(escape(tok)).append("</span>");
+                    else hb.append(escape(tok));
+                } else hb.append(escape(tok));
+            }
+
+            StringBuilder ha = new StringBuilder();
+            for (String tok : ta) {
+                if (tok.matches("[A-Za-z0-9]{3,}")) {
+                    boolean newOnly = !wordsBefore.contains(tok.toLowerCase());
+                    if (newOnly) ha.append("<span class='add' title='new in AFTER'>").append(escape(tok)).append("</span>");
+                    else ha.append(escape(tok));
+                } else ha.append(escape(tok));
+            }
+
+            try (BufferedWriter w = Files.newBufferedWriter(outHtml, StandardCharsets.UTF_8)) {
+                w.write("<!doctype html><meta charset='utf-8'><title>PDF Text Diff</title>");
+                w.write("<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:16px} .col{width:49%;display:inline-block;vertical-align:top} pre{white-space:pre-wrap;word-wrap:break-word;border:1px solid #ddd;padding:10px;border-radius:8px;background:#fff} h3{margin:.2rem 0} .miss{background:#ffe3e3} .add{background:#e6ffe6} .legend span{display:inline-block;margin-right:12px;padding:2px 6px;border-radius:4px;border:1px solid #ccc} </style>");
+                w.write("<div class='legend'><span class='miss'>missing in AFTER</span><span class='add'>new in AFTER</span></div>");
+                w.write("<div class='col'><h3>BEFORE</h3><pre>"); w.write(hb.toString()); w.write("</pre></div>");
+                w.write("<div class='col'><h3>AFTER</h3><pre>");  w.write(ha.toString()); w.write("</pre></div>");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write diff HTML: " + outHtml, e);
+        }
+    }
+    
+    private static String escape(String s){
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+    
+    /** Compare two PDFs and generate an HTML diff; also compute ‘missing tokens’. */
+    public DiffSummary comparePdfsToHtml(Path beforePdf, Path afterPdf, Path outHtml) {
+        String t1 = readPdfText(beforePdf);
+        String t2 = readPdfText(afterPdf);
+        boolean same = t1.equals(t2);
+
+        // missing tokens: in BEFORE but not in AFTER (top 50)
+        Set<String> w1 = new LinkedHashSet<>();
+        for (String w : t1.split("[^A-Za-z0-9]+")) if (w.length()>2) w1.add(w.toLowerCase());
+        Set<String> w2 = new HashSet<>();
+        for (String w : t2.split("[^A-Za-z0-9]+")) if (w.length()>2) w2.add(w.toLowerCase());
+        List<String> missing = new ArrayList<>();
+        for (String w : w1) if (!w2.contains(w)) { missing.add(w); if (missing.size()>=50) break; }
+
+        writeDiffHtml(t1, t2, outHtml);
+        return new DiffSummary(same, missing, outHtml);
+        
+        
+    }
+    
+ // Build a compact “missing tokens” list: words in BEFORE but not in AFTER.
+    public List<String> computeMissingTokens(String beforeText, String afterText) {
+        Set<String> b = new LinkedHashSet<>();
+        for (String w : beforeText.split("[^A-Za-z0-9]+")) if (w.length()>2) b.add(w.toLowerCase());
+        Set<String> a = new HashSet<>();
+        for (String w : afterText.split("[^A-Za-z0-9]+")) if (w.length()>2) a.add(w.toLowerCase());
+        List<String> missing = new ArrayList<>();
+        for (String w : b) if (!a.contains(w)) { missing.add(w); if (missing.size() >= 50) break; }
+        return missing;
+    }
+
+ // Tokenize while keeping punctuation and newlines so we can re-render the full report
+    private static List<String> tokenizeKeepPunct(String s) {
+        List<String> out = new ArrayList<>();
+        StringBuilder w = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLetterOrDigit(c)) {
+                w.append(c);
+            } else {
+                if (w.length() > 0) { out.add(w.toString()); w.setLength(0); }
+                out.add(String.valueOf(c)); // this includes spaces and '\n'
+            }
+        }
+        if (w.length() > 0) out.add(w.toString());
+        return out;
+    }
+
+//    private static String esc(String s){
+//        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+//    }
+
+    /** Return the inner HTML (legend + side-by-side) highlighting differences. */
+ // ---------- Readable diff (line LCS + word highlights) ----------
+    private static List<String> splitLinesOrSentences(String s) {
+        if (s == null) return java.util.List.of();
+        if (s.contains("\n")) return java.util.Arrays.asList(s.split("\\R"));
+        return java.util.Arrays.asList(s.split("(?<=[.!?;:])\\s+"));
+    }
+
+    private static String esc(String s){
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+
+ // REPLACE your current buildDiffInnerHtml(...) with this:
+    /** Return control-free HTML that shows full BEFORE and AFTER with colored highlights. */
+    /** Return readable, collapsible HTML that shows full BEFORE and AFTER with colored highlights. */
+    public String buildDiffInnerHtml(String beforeText, String afterText) {
+        // Word sets for membership tests (ignore short tokens; case-insensitive)
+        java.util.Set<String> wordsBefore = new java.util.HashSet<>();
+        for (String t : beforeText.split("[^A-Za-z0-9]+")) if (t.length() > 2) wordsBefore.add(t.toLowerCase());
+        java.util.Set<String> wordsAfter  = new java.util.HashSet<>();
+        for (String t : afterText.split("[^A-Za-z0-9]+"))  if (t.length() > 2) wordsAfter.add(t.toLowerCase());
+
+        // Build highlighted BEFORE + count "missing in AFTER"
+        StringBuilder hb = new StringBuilder();
+        int missingCount = 0;
+        for (String tok : tokenizeKeepPunct(beforeText)) {
+            if (tok.matches("[A-Za-z0-9]{3,}") && !wordsAfter.contains(tok.toLowerCase())) {
+                hb.append("<span class='miss' title='missing in AFTER'>").append(esc(tok)).append("</span>");
+                missingCount++;
+            } else {
+                hb.append(esc(tok));
+            }
+        }
+
+        // Build highlighted AFTER + count "new in AFTER"
+        StringBuilder ha = new StringBuilder();
+        int addedCount = 0;
+        for (String tok : tokenizeKeepPunct(afterText)) {
+            if (tok.matches("[A-Za-z0-9]{3,}") && !wordsBefore.contains(tok.toLowerCase())) {
+                ha.append("<span class='add' title='new in AFTER'>").append(esc(tok)).append("</span>");
+                addedCount++;
+            } else {
+                ha.append(esc(tok));
+            }
+        }
+
+        // Collapsible, control-free, with better readability
+        StringBuilder out = new StringBuilder();
+        out.append("<style>")
+           // summary (collapsible header)
+           .append("details.diffbox{margin-top:10px}")
+           .append("details.diffbox summary{cursor:pointer;background:#f4f6f8;border:1px solid #e1e5ea;padding:10px 12px;border-radius:8px;font-weight:600}")
+           .append("details.diffbox[open] summary{border-bottom-left-radius:0;border-bottom-right-radius:0}")
+           // layout & readability
+           .append(".legend span{display:inline-block;margin:8px 10px 14px 0;padding:2px 8px;border-radius:4px;border:1px solid #ccc}")
+           .append(".twocol{display:flex;gap:14px}")
+           .append(".col{flex:1}")
+           .append("h3{margin:.4rem 0}")
+           .append("pre{white-space:pre-wrap;word-break:break-word;border:1px solid #e5e5e5;padding:12px;border-radius:8px;background:#fff;")
+           .append("line-height:1.5;font-size:15px;font-family:Segoe UI, Arial, Helvetica, sans-serif;}")
+           // highlighting chips
+           .append(".miss{background:#ffebee;box-shadow:inset 0 -2px #c62828;border-radius:3px}")
+           .append(".add{background:#e8f5e9;box-shadow:inset 0 -2px #2e7d32;border-radius:3px}")
+           .append("</style>");
+
+        out.append("<details class='diffbox'>");
+        out.append("<summary>Detailed differences").append("")
+           .append("").append("").append(" (click to expand)</summary>");
+
+        out.append("<div class='legend'><span class='miss'>missing in AFTER</span>")
+           .append("<span class='add'>new in AFTER</span></div>");
+
+        out.append("<div class='twocol'>");
+        out.append("<div class='col'><h3>BEFORE</h3><pre>").append(hb).append("</pre></div>");
+        out.append("<div class='col'><h3>AFTER</h3><pre>").append(ha).append("</pre></div>");
+        out.append("</div>");
+
+        out.append("</details>");
+        return out.toString();
+    }
+
+
+    // simple esc used above
+//    private static String esc(String s){
+//        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+//    }
+
+
+
+
+    /** Write a full per-quote comparison page inside the quote folder (comparison.html). */
+    public Path writeQuoteComparisonPage(Path quoteDir,
+                                         String loginId,
+                                         String quoteCode,
+                                         String revisedCode,
+                                         Path beforePdf,
+                                         Path afterPdf,
+                                         boolean identical,
+                                         List<String> missingTokens,
+                                         String diffInnerHtml) {
+        try {
+            Files.createDirectories(quoteDir);
+            Path out = quoteDir.resolve("comparison.html");
+            String relBefore = beforePdf.getFileName().toString();
+            String relAfter  = afterPdf.getFileName().toString();
+            String fileHrefBefore = "file:///" + beforePdf.toAbsolutePath().toString().replace("\\","/");
+            String fileHrefAfter  = "file:///" + afterPdf.toAbsolutePath().toString().replace("\\","/");
+
+            try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+                w.write("<!doctype html><meta charset='utf-8'><title>Quote Comparison - " + esc(quoteCode) + "</title>");
+                w.write("<style>");
+                w.write(
+                		  "body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:16px;background:#fafafa}" +
+                		  "table{border-collapse:collapse;margin-bottom:14px;background:#fff;border-radius:8px;overflow:hidden}" +
+                		  "td,th{border:1px solid #e6e6e6;padding:8px 10px}" +
+                		  ".ok{color:#0a0;font-weight:600}.bad{color:#c00;font-weight:600}" +
+                		  ".links a{margin-right:14px}" +
+
+                		  /* full-doc two columns */
+                		  ".cols{display:flex;gap:14px}" +
+                		  ".col{flex:1 1 50%}" +
+                		  "pre.doc{white-space:pre-wrap;word-wrap:break-word;border:1px solid #ddd;padding:10px;border-radius:8px;background:#fff}" +
+
+                		  /* highlights */
+                		  ".miss{background:#ffe3e3;border-radius:3px;padding:0 2px}" +
+                		  ".add{background:#e6ffe6;border-radius:3px;padding:0 2px}" +
+
+                		  /* HIDE any legacy toolbar bits if they still render */
+                		  "#diff input[type=range], #diff input[type=text], #diff label{display:none !important}" +
+                		  "#changes-summary, .change-links{display:none !important}"   // in case those ids/classes exist
+                		);
+
+
+                w.write("</style>");
+
+
+                // summary header
+                w.write("<h2>Quote Comparison</h2>");
+//                w.write("<div class='links'><a href='#diff'>Jump to differences</a> | ");
+//                w.write("<a href='" + fileHrefBefore + "' target='_blank'>Open BEFORE PDF</a> | ");
+//                w.write("<a href='" + fileHrefAfter  + "' target='_blank'>Open AFTER PDF</a></div>");
+
+                w.write("<table>");
+                w.write("<tr><th>Login Id</th><td>" + esc(loginId) + "</td></tr>");
+                w.write("<tr><th>Quote code</th><td><code>" + esc(quoteCode) + "</code></td></tr>");
+                w.write("<tr><th>Revised Quote code</th><td><code>" + esc(revisedCode == null ? "" : revisedCode) + "</code></td></tr>");
+                w.write("<tr><th>BEFORE file</th><td><a target='_blank' href='" + fileHrefBefore + "'>" + esc(relBefore) + "</a></td></tr>");
+                w.write("<tr><th>AFTER file</th><td><a target='_blank' href='" + fileHrefAfter  + "'>" + esc(relAfter)  + "</a></td></tr>");
+                w.write("<tr><th>Result</th><td class='" + (identical?"ok":"bad") + "'>"
+                        + (identical ? "Both report are identical" : "Both reports are not identical") + "</td></tr>");
+                w.write("<tr><th>Missing text (sample)</th><td>"
+                        + (missingTokens.isEmpty() ? "&nbsp;"
+                        : esc(String.join(", ", missingTokens.size()>50 ? missingTokens.subList(0,50) : missingTokens)))
+                        + "</td></tr>");
+                w.write("</table>");
+
+                // diff section
+                w.write("<h3 id='diff'>Detailed differences</h3>");
+                w.write(diffInnerHtml);
+            }
+            return out;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write comparison.html in " + quoteDir, e);
+        }
+    }
+
+    		public DiffSummary compareAndWriteQuoteReport(Path quoteDir,
+    					String loginId,
+    						String quoteCode,
+    						String revisedCode,
+    						Path beforePdf,
+    						Path afterPdf) {
+    				String tBefore = readPdfText(beforePdf);
+    				String tAfter  = readPdfText(afterPdf);
+
+    				boolean identical = tBefore.equals(tAfter);
+    				List<String> missing = computeMissingTokens(tBefore, tAfter);
+
+    				// NEW: full document diff
+    				String diffInner = buildFullDocsSideBySide(tBefore, tAfter);
+
+    				Path out = writeQuoteComparisonPage(
+    						quoteDir, loginId, quoteCode, revisedCode,
+    						beforePdf, afterPdf, identical, missing, diffInner
+    						);
+    				return new DiffSummary(identical, missing, out);
+    			}
+    
+    			/** Build FULL document view (no toolbars), side-by-side with highlights. */
+    public String buildFullDocsSideBySide(String beforeText, String afterText) {
+        // Word membership sets for quick difference checks
+        java.util.Set<String> wordsBefore = new java.util.HashSet<>();
+        java.util.Set<String> wordsAfter  = new java.util.HashSet<>();
+        for (String t : beforeText.split("[^A-Za-z0-9]+")) if (t.length()>2) wordsBefore.add(t.toLowerCase());
+        for (String t : afterText.split("[^A-Za-z0-9]+"))  if (t.length()>2) wordsAfter.add(t.toLowerCase());
+
+        // BEFORE column: highlight words that are missing in AFTER
+        StringBuilder hb = new StringBuilder();
+        for (String tok : tokenizeKeepPunct(beforeText)) {
+            if (tok.matches("[A-Za-z0-9]{3,}") && !wordsAfter.contains(tok.toLowerCase()))
+                hb.append("<span class='miss' title='missing in AFTER'>").append(esc(tok)).append("</span>");
+            else hb.append(esc(tok));
+        }
+
+        // AFTER column: highlight words that are new compared to BEFORE
+        StringBuilder ha = new StringBuilder();
+        for (String tok : tokenizeKeepPunct(afterText)) {
+            if (tok.matches("[A-Za-z0-9]{3,}") && !wordsBefore.contains(tok.toLowerCase()))
+                ha.append("<span class='add' title='new in AFTER'>").append(esc(tok)).append("</span>");
+            else ha.append(esc(tok));
+        }
+
+        // Legend + two full PRE blocks
+        StringBuilder out = new StringBuilder();
+        out.append("<div class='legend'><span class='miss'>missing in AFTER</span>")
+           .append("<span class='add'>new in AFTER</span></div>");
+        out.append("<div class='cols'>")
+           .append("<div class='col'><h3>BEFORE</h3><pre class='doc'>").append(hb).append("</pre></div>")
+           .append("<div class='col'><h3>AFTER</h3><pre class='doc'>").append(ha).append("</pre></div>")
+           .append("</div>");
+        return out.toString();
+    }
+
+    // ========== Added Helpers: Dropdown First-Option, Select, Robot, and Screenshots ==========
+
+    /**
+     * Clicks the first option of an already-open dropdown menu.
+     * Pass a locator that directly matches the first, ready-to-click option
+     * to avoid scanning all options.
+     *
+     * This method scrolls the option into view and tries a normal click.
+     * If it's intercepted or goes stale, it falls back to a JS click.
+     */
+    public void selectFromOpenDropdown(By firstOptionLocator) {
+        WebDriverWait fastWait = new WebDriverWait(driver, Duration.ofSeconds(5));
+        WebElement first = fastWait.until(ExpectedConditions.elementToBeClickable(firstOptionLocator));
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'})", first);
+        try {
+            first.click();
+        } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click()", first);
+        }
+        // intentionally do not wait for menu invisibility, to keep it fast
+    }
+
+    /**
+     * Overload that accepts a pre-found WebElement for the first option.
+     */
+    public void selectFromOpenDropdown(WebElement firstOptionElement) {
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'})", firstOptionElement);
+        try {
+            firstOptionElement.click();
+        } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click()", firstOptionElement);
+        }
+    }
+
+    // ---------- Select (HTML <select>) helpers ----------
+
+    public void selectByVisibleText(WebElement selectElement, String text) {
+        new Select(selectElement).selectByVisibleText(text);
+    }
+
+    public void selectByValue(WebElement selectElement, String value) {
+        new Select(selectElement).selectByValue(value);
+    }
+
+    public void selectByIndex(WebElement selectElement, int index) {
+        new Select(selectElement).selectByIndex(index);
+    }
+
+    public String getFirstSelectedOptionText(WebElement selectElement) {
+        return new Select(selectElement).getFirstSelectedOption().getText();
+    }
+
+    // ---------- Screenshot helpers ----------
+
+    /**
+     * Takes a full-page screenshot and saves it under the given directory with a timestamped filename.
+     * @param outputDir directory to save into (will be created if missing)
+     * @param baseName filename prefix (e.g., "CheckoutPage")
+     * @return Path to the saved PNG file
+     */
+    public Path takeScreenshot(Path outputDir, String baseName) {
+        try {
+            Files.createDirectories(outputDir);
+            String ts = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS")
+                    .format(java.time.LocalDateTime.now());
+            String fileName = baseName + "_" + ts + ".png";
+            File src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+            Path dest = outputDir.resolve(fileName);
+            Files.copy(src.toPath(), dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Saved screenshot: " + dest);
+            return dest;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to take screenshot", e);
+        }
+    }
+
+    /**
+     * Returns the current screenshot as raw bytes (PNG format).
+     */
+    public byte[] getScreenshotBytes() {
+        return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+    }
+
+    // ---------- Robot helpers ----------
+
+    private java.awt.Robot _robot; // lazily initialized
+
+    /**
+     * Lazily creates and returns a shared Robot instance.
+     */
+    public synchronized java.awt.Robot getRobot() {
+        if (_robot == null) {
+            try {
+                _robot = new java.awt.Robot();
+            } catch (java.awt.AWTException e) {
+                throw new RuntimeException("Could not create Robot", e);
+            }
+        }
+        return _robot;
+    }
+
+    /**
+     * Type a small chunk of text via clipboard paste to avoid per-character key mapping complexities.
+     * Useful for native file dialogs or non-web controls.
+     */
+    public void robotPaste(String text) {
+        java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(text);
+        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+        java.awt.Robot r = getRobot();
+        r.delay(100);
+        // Press Ctrl+V (Command+V on macOS also maps when WebDriver runs with default shortcuts)
+        r.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+        r.keyPress(java.awt.event.KeyEvent.VK_V);
+        r.keyRelease(java.awt.event.KeyEvent.VK_V);
+        r.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+        r.delay(100);
+    }
+
+    /**
+     * Press an arbitrary key using Robot.
+     */
+    public void robotKeyTap(int keyCode) {
+        java.awt.Robot r = getRobot();
+        r.keyPress(keyCode);
+        r.keyRelease(keyCode);
+    }
+
+}

@@ -1,0 +1,249 @@
+package util;
+
+import org.openqa.selenium.WebDriver;
+import org.testng.Reporter;
+import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.function.Supplier;
+
+
+
+public final class Log {
+
+    public enum Level { DEBUG, INFO, PASS, ERROR }
+ // at top of Log class:
+    private static final ThreadLocal<String> SECTION = new ThreadLocal<>();
+
+    private static volatile Level threshold = Level.INFO;
+    private static final ThreadLocal<String> currentAction = new ThreadLocal<>();
+    private static final ThreadLocal<String> currentTest   = new ThreadLocal<>();
+    
+
+    public static void initFromSystemProperty() {
+        String lv = System.getProperty("logLevel", "INFO").trim().toUpperCase();
+        try { threshold = Level.valueOf(lv); } catch (Exception ignored) {}
+        log(Level.INFO, "INIT", "Logger initialized with level=" + threshold, null);
+    }
+    
+    
+
+    public static void setAction(String action) { currentAction.set(action); }
+    public static void clearAction() { currentAction.remove(); }
+
+    public static void beginTest(Method method) {
+        String name = method.getDeclaringClass().getSimpleName() + "#" + method.getName();
+        currentTest.set(name);
+        info("TEST", "Start: " + name);
+    }
+    public static void endTest() {
+        String name = currentTest.get();
+        if (name != null) {
+            info("TEST", "End: " + name);
+            currentTest.remove();
+        }
+    }
+
+    public static void debug(String action, String msg) { log(Level.DEBUG, action, msg, null); }
+    public static void info (String action, String msg) { log(Level.INFO , action, msg, null); }
+    public static void pass (String action, String msg) { log(Level.PASS , action, msg, null); }
+    public static void error(String action, String msg, Throwable t) { log(Level.ERROR, action, msg, t); }
+    public static void fail (String action, String msg, Throwable t) { log(Level.ERROR, action, "FAIL: " + msg, t); }
+
+    // -------- core (SANITIZED) --------
+    private static void log(Level level, String action, String msg, Throwable t) {
+        if (level.ordinal() < threshold.ordinal()) return;
+
+        String ts = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+        StackTraceElement here = findCaller();
+        String cls = here.getClassName();
+        String mth = here.getMethodName();
+
+        String act = action != null ? action : currentAction.get();
+        if (act == null) act = "-";
+
+        String cleanMsg = sanitize(msg);
+
+        String line = String.format(
+                "%s | %-5s | %s#%s | action=%s | %s",
+                ts, level, simple(cls), mth, act, cleanMsg == null ? "" : cleanMsg
+        );
+
+        // Console
+        System.out.println(line);
+
+        // TestNG Reporter (emailable + our custom HTML reporter will both pick this up)
+        String html = "<div class='log-line level-" + level.name().toLowerCase() +
+                "' style='font-family:monospace'>" +
+                esc(ts) + " | <b>" + esc(level.name()) + "</b> | " +
+                esc(simple(cls)) + "#" + esc(mth) + " | " +
+                "action=<i>" + esc(act) + "</i> | " + esc(cleanMsg == null ? "" : cleanMsg) +
+                "</div>";
+        Reporter.log(html, true);
+
+        if (t != null) {
+            String stack = sanitize(stackToStringRaw(t));
+            System.err.println(stack);
+            Reporter.log("<pre class='stack level-error' " +
+                    "style='white-space:pre-wrap;color:#c00;background:#fff5f5;padding:8px;border-radius:6px'>" +
+                    esc(stack) + "</pre>", true);
+        }
+    }
+
+    // Scrub common locator patterns from messages/stacks
+    private static String sanitize(String s) {
+        if (s == null) return null;
+        String out = s;
+
+        // collapse repeated spaces
+        out = out.replaceAll("[ \\t]{2,}", " ");
+
+        // Strip WebDriver header blocks: [[ChromeDriver ...]] (with or without '->')
+        out = out.replaceAll("\\[\\[(?:ChromeDriver|FirefoxDriver|EdgeDriver).*?\\]\\]\\s*->\\s*", "");
+        out = out.replaceAll("\\[\\[(?:ChromeDriver|FirefoxDriver|EdgeDriver).*?\\]\\]", "");
+
+        // Trailing '-> locator: ...]' placeholder
+        out = out.replaceAll("->\\s*\\w+\\s*:\\s*[^\\]]+\\]", "-> <locator>]");
+
+        // DefaultElementLocator & Proxy element lines
+        out = out.replaceAll("DefaultElementLocator\\s*'By\\.[^']+'", "DefaultElementLocator '<locator>'");
+        out = out.replaceAll("Proxy element for:\\s*DefaultElementLocator\\s*'By\\.[^']+'", "Proxy element for: <locator>");
+
+        // Any By.<type>: ...
+        out = out.replaceAll("(?i)By\\.[a-zA-Z]+\\s*:\\s*[^\\]\\n]+", "By:<locator>");
+
+        // Raw 'xpath: ...'
+        out = out.replaceAll("(?i)xpath\\s*:\\s*[^\\]\\n]+", "xpath:<locator>");
+
+        // ExpectedConditions snippets
+        out = out.replaceAll("(?i)(visibility of element located by By\\.).*", "visibility of <locator>");
+        out = out.replaceAll("(?i)(element to be clickable\\s*:?\\s*By\\.).*", "element to be clickable: <locator>");
+
+        return out;
+    }
+
+    // Build raw stack string (unsanitized), then sanitize before printing
+    private static String stackToStringRaw(Throwable t) {
+        StringBuilder sb = new StringBuilder(t.toString()).append('\n');
+        for (StackTraceElement e : t.getStackTrace()) {
+            sb.append("\tat ").append(e).append('\n');
+        }
+        Throwable cause = t.getCause();
+        while (cause != null) {
+            sb.append("Caused by: ").append(cause).append('\n');
+            for (StackTraceElement e : cause.getStackTrace()) {
+                sb.append("\tat ").append(e).append('\n');
+            }
+            cause = cause.getCause();
+        }
+        return sb.toString();
+    }
+
+    private static String esc(String s) {
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+    private static String simple(String fqcn) {
+        int i = fqcn.lastIndexOf('.');
+        return i >= 0 ? fqcn.substring(i + 1) : fqcn;
+    }
+    private static StackTraceElement findCaller() {
+        for (StackTraceElement e : new Throwable().getStackTrace()) {
+            if (!e.getClassName().equals(Log.class.getName())) return e;
+        }
+        return new Throwable().getStackTrace()[0];
+    }
+
+    private Log() {}
+    
+ // --- add these fields inside Log class ---
+    private static final ThreadLocal<NetworkConsoleRecorder> REC = new ThreadLocal<>();
+    private static volatile Supplier<NetworkConsoleRecorder> REC_PROVIDER;
+
+    public static void startNetworkRecorder(WebDriver driver, String testName) {
+        try {
+            Path out = Paths.get("logs");
+            NetworkConsoleRecorder rec = new NetworkConsoleRecorder(driver, out, testName);
+            rec.start();
+            REC.set(rec);
+
+            // Put a single link to each HTML log into the TestNG report
+            ReporterConsoleBridge.logArtifact("Network / API log", rec.getNetworkFile());
+            ReporterConsoleBridge.logArtifact("Console log", rec.getConsoleFile());
+        } catch (Exception ignored) {}
+    }
+
+    public static void stopNetworkRecorder() {
+    	  NetworkConsoleRecorder rec = REC.get();
+    	  if (rec != null) {
+    	    try {
+    	      rec.stop(); // writes THIS test's files
+    	      ReporterConsoleBridge.logArtifact("Open API calls", rec.getNetworkFile());
+    	      ReporterConsoleBridge.logArtifact("Open Console",   rec.getConsoleFile());
+    	    } finally {
+    	      REC.remove();
+    	    }
+    	  }
+    	}
+
+    // --- add these methods inside Log class ---
+    /** Provide a recorder when needed (e.g., in @BeforeMethod). */
+    public static void setRecorderProvider(Supplier<NetworkConsoleRecorder> provider) {
+        REC_PROVIDER = provider;
+    }
+
+    /** Set a recorder directly for the current thread, if you prefer. */
+    public static void setRecorder(NetworkConsoleRecorder recorder) {
+        REC.set(recorder);
+    }
+    
+    // Keep existing call sites that use log(...).
+    public static void info(String message) { info("LOG", message); }
+
+    /** Run a step and (if configured) wrap it in NetworkConsoleRecorder.record(...). */
+    public static void capture(String label, Runnable action ) {
+        NetworkConsoleRecorder r = REC.get();
+        if (r == null && REC_PROVIDER != null) {
+            r = REC_PROVIDER.get();
+            REC.set(r);
+        }
+        if (r != null) {
+            // Let the recorder handle timing + writing logs
+            r.record(label, action);
+        } else {
+            // No recorder configured—just run the action
+            action.run();
+        }
+    }
+    
+ // Internal helper used by section()
+    private static NetworkConsoleRecorder ensureRecorder() {
+        NetworkConsoleRecorder r = REC.get();
+        if (r == null && REC_PROVIDER != null) {
+            r = REC_PROVIDER.get();
+            REC.set(r);
+        }
+        return r;
+    }
+    
+    public static void section(String name, Runnable block) {
+        String prev = SECTION.get();
+        SECTION.set(name);
+
+        // optional: console only (won't go to TestNG)
+        System.out.println("===== Begin: " + name + " =====");
+
+        try {
+            NetworkConsoleRecorder rec = ensureRecorder();
+            if (rec != null) {
+                rec.record("Method: " + name, block);
+            } else {
+                block.run();
+            }
+        } finally {
+            System.out.println("===== End: " + name + " ====="); // console only
+            SECTION.set(prev);
+        }
+    }
+}

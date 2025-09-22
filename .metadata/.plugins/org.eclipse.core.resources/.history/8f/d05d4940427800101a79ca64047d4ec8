@@ -1,0 +1,50 @@
+package Test;
+
+import java.awt.AWTException;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.testng.annotations.Test;
+import AutoConstant.constantInput;
+import POM.LoginSapphire;
+import POM.Plan;
+
+public class PlanModule implements constantInput 
+{
+
+	@SuppressWarnings("deprecation")
+	@Test
+	public void acc() throws InterruptedException, IOException, AWTException 
+	{
+		System.setProperty("webdriver.chrome.driver", "./drivers/chromedriver.exe");
+		ChromeOptions options = new ChromeOptions();
+		options.addArguments("--remote-allow-origins=*");
+		options.addArguments("--incognito");
+		options.addArguments("--headless=new", "--window-size=1920,1080");
+		WebDriver driver = new ChromeDriver(options);
+		driver.manage().window().maximize();
+		driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
+		driver.manage().timeouts().pageLoadTimeout(30, TimeUnit.SECONDS);
+		driver.manage().deleteAllCookies();
+		driver.get(URl);
+
+		LoginSapphire log = new LoginSapphire(driver);
+		log.LoginMethod();
+		Plan pn=new Plan(driver);
+		pn.plans();
+		pn.downloadQuote();
+		//pn.viewreports();
+//		Thread.sleep(3000);
+//		pn.downloadreports();
+//		Thread.sleep(3000);
+		pn.workorders();
+//		Thread.sleep(2000);
+		pn.productionBatch();
+//		Thread.sleep(2000);
+//		pn.capacityplanning();
+//		Thread.sleep(2000);
+//		pn.salesanalytics();
+	}
+}

@@ -1,0 +1,347 @@
+package POM;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.Set;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+public class OrderModule 
+{
+	static String parentWindow;
+	WebDriver driver;
+	public String childWindowName;
+	public String newWindowTitle;
+
+	int rdmnumber = (int) (Math.random() * 1000);
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+	
+	@FindBy(xpath = "//a[@tooltip='Apps']")
+	private WebElement apps;
+	
+	@FindBy(xpath="(//div[@class='icon'])[4]")
+	private WebElement ordermodule;
+	
+	@FindBy(xpath="//button[contains(text(),'New order')]")
+	private WebElement neworderbutton;
+	
+	@FindBy(xpath="//input[@formcontrolname='salesOrderDescription']")
+	private WebElement remarktextareafield;
+	
+	@FindBy(xpath="//button[.='Create']")
+	private WebElement createbutton;
+	
+	@FindBy(xpath="(//a[.='Change status'])[1]")
+	private WebElement changestatustab;
+	
+	@FindBy(xpath="//app-eva-dropdown[@formcontrolname='voucherStatus']")
+	private WebElement statusdd;
+	
+	@FindBy(xpath="(//a[contains(text(),'Approved')])[2]")
+	private WebElement ddapprovebutton;
+	
+	@FindBy(xpath="//button[.='Save']")
+	private WebElement savebutton;
+	
+	@FindBy(xpath="//a[contains(text(),'Approved')]")
+	private WebElement approvedclassification;
+	
+	@FindBy(xpath="(//div[@class='hovr-area'])[1]")
+	private WebElement actionbutton;
+	
+	@FindBy(xpath="(//div[@class='hovr-area'])[5]")
+	private WebElement actionbutton1;
+	
+	@FindBy(xpath="(//a[.='Download won quote'])[5]")
+	private WebElement downloadwonquotetab;
+	
+	@FindBy(xpath="(//a[.='Commit to SAP'])[1]")
+	private WebElement committosaptab;
+	
+	@FindBy(xpath="(//a[.='Add work order'])[1]")
+	private WebElement addworkordertab;
+	
+	@FindBy(xpath="(//a[.='Edit'])[5]")
+	private WebElement edittab;
+	
+	@FindBy(xpath="(//a[.='Delete'])[5]")
+	private WebElement deletetab;
+	
+	@FindBy(xpath="//app-eva-dropdown[@formcontrolname='factoryId']")
+	private WebElement factorydd;
+	
+	@FindBy(xpath="//a[contains(text(),'Bhubaneswar Factory')]")
+	private WebElement secondelement;
+	
+	@FindBy(xpath="//button[contains(text(),'Update')]")
+	private WebElement updatebutton;
+	
+	@FindBy(xpath="(//button[.='View'])[3]")
+	private WebElement viewbutton;
+	
+	@FindBy(xpath="(//li[@class='nav-item'])[3]")
+	private WebElement reportstab;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[1]")
+	private WebElement viewelevationreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[2]")
+	private WebElement viewbasicdimensionreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[3]")
+	private WebElement viewtypologycostbreakupreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[4]")
+	private WebElement viewprofileboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[5]")
+	private WebElement viewreinforcementboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[6]")
+	private WebElement viewaccessoriesreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[7]")
+	private WebElement viewglassboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[8]")
+	private WebElement viewcuttingschedulereport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[9]")
+	private WebElement viewdesignassemblyreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[10]")
+	private WebElement viewricuttingschedulereport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[11]")
+	private WebElement viewinstallationreport;
+	
+	@FindBy(xpath="//app-eva-dropdown[@labelid='accountMasterId']")
+	private WebElement billtoaccountdd;
+	
+	@FindBy(xpath="//a[contains(text(),'Infra Tech Pvt Ltd - 2102121212')]")
+	private WebElement eighthelement;
+	
+	@FindBy(xpath="//input[@formcontrolname='salesOffice']")
+	private WebElement salesofficedd;
+	
+	@FindBy(xpath="//div[contains(text(),'CD-H1001 - Yogesh Tushar')]")
+	private WebElement sixteenthelement;
+	
+	@FindBy(xpath="(//span[@tooltip='Sort'])[2]")
+	private WebElement sortbutton;
+	
+	@FindBy(xpath="(//a[contains(text(),'Expected delivery datetime A to Z')])[2]")
+	private WebElement exdatetimeatoz;
+	
+	@FindBy(xpath="(//a[.='Sales order value A to Z'])[2]")
+	private WebElement salesordervalueatoz;
+	
+	@FindBy(xpath="(//a[.='Sales order unit Z to A'])[2]")
+	private WebElement salesorderunitztoa;
+	
+	@FindBy(xpath="(//a[.='Sales order area A to Z'])[2]")
+	private WebElement salesorderareaatoz;
+	
+	@FindBy(xpath="//input[@formcontrolname='contactNoPrimary']")
+	private WebElement primarycontnumbercommittosap;
+	
+	@FindBy(xpath="//input[@formcontrolname='contactNoOptional']")
+	private WebElement secondarycontactnumbercommttosap;
+	
+	@FindBy(xpath="//button[@class='close']")
+	private WebElement closebutton;
+	
+	public OrderModule(WebDriver driver) 
+	{
+		this.driver = driver;
+		PageFactory.initElements(driver, this);
+	}
+	
+	public void orders() throws InterruptedException
+	{
+		apps.click();
+		
+		parentWindow = driver.getWindowHandle();
+		ordermodule.click();
+	
+		Set<String> windowId = driver.getWindowHandles();
+		Iterator<String> it = windowId.iterator();
+		while (it.hasNext()) 
+		{
+			childWindowName = it.next();
+			if (parentWindow != childWindowName) 
+			{
+				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+				System.out.println(newWindowTitle);
+			}
+		}
+//		neworderbutton.click();
+//		
+//		remarktextareafield.sendKeys("Automation Test"+rdmnumber);
+//	
+//		createbutton.click();
+//		Thread.sleep(3000);
+//		actionbutton.click();
+//		
+//		changestatustab.click();
+//		
+//		statusdd.click();
+//	
+//		ddapprovebutton.click();
+//	
+//		savebutton.click();
+//		
+//		closebutton.click();
+		
+		approvedclassification.click();
+	
+		actionbutton1.click();
+		
+		downloadwonquotetab.click();
+		Thread.sleep(5000);
+		actionbutton1.click();
+		Thread.sleep(2000);
+		addworkordertab.click();
+	
+		factorydd.click();
+		
+		secondelement.click();
+		Thread.sleep(2000);
+		createbutton.click();
+		Thread.sleep(3000);
+		actionbutton1.click();
+		
+		edittab.click();
+		Thread.sleep(2000);
+		updatebutton.click();
+		
+		sortbutton.click();
+	
+		exdatetimeatoz.click();
+		
+		sortbutton.click();
+		
+		salesordervalueatoz.click();
+		
+		sortbutton.click();
+		
+		salesorderunitztoa.click();
+		
+		sortbutton.click();
+		
+		salesorderareaatoz.click();
+		
+	}
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Refresh'])[2]")
+	private WebElement refreshicon;
+	
+	public void viewreport() throws InterruptedException
+	{		
+//		refreshicon.click();
+//	
+//		actionbutton1.click();
+//	
+//		viewbutton.click();
+//	
+//		reportstab.click();
+
+		viewelevationreport.click();
+		
+		viewbasicdimensionreport.click();
+		
+		viewtypologycostbreakupreport.click();
+	
+		viewprofileboqreport.click();
+		
+		viewreinforcementboqreport.click();
+		
+		viewaccessoriesreport.click();
+	
+		viewglassboqreport.click();	
+	
+		viewcuttingschedulereport.click();
+		
+		viewdesignassemblyreport.click();
+		
+		viewricuttingschedulereport.click();
+	
+		viewinstallationreport.click();
+	}
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[1]")
+	private WebElement basicdimensionreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[2]")
+	private WebElement elevationreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[3]")
+	private WebElement quotation;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[4]")
+	private WebElement typologycostbreakupreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[5]")
+	private WebElement profileboqreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[6]")
+	private WebElement reinforcementboqreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[7]")
+	private WebElement accessoriesboqreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[8]")
+	private WebElement glassboqreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[9]")
+	private WebElement designassemblyreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[10]")
+	private WebElement cuttingschedulereportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[11]")
+	private WebElement ricuttingschedulereportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[12]")
+	private WebElement installationreportdownload;
+	
+	public void reportdownload() throws InterruptedException
+	{
+		
+		Thread.sleep(2000);
+		actionbutton1.click();
+		Thread.sleep(2000);
+		viewbutton.click();
+		Thread.sleep(3000);
+		reportstab.click();
+		Thread.sleep(3000);
+		elevationreportdownload.click();
+		Thread.sleep(1000);
+		basicdimensionreportdownload.click();
+		Thread.sleep(1000);
+		typologycostbreakupreportdownload.click();
+		Thread.sleep(1000);
+		profileboqreportdownload.click();
+		Thread.sleep(1000);
+		reinforcementboqreportdownload.click();
+		Thread.sleep(1000);
+		accessoriesboqreportdownload.click();
+		Thread.sleep(1000);
+		glassboqreportdownload.click();
+		Thread.sleep(1000);
+		cuttingschedulereportdownload.click();
+		Thread.sleep(1000);
+		designassemblyreportdownload.click();
+		Thread.sleep(1000);
+		ricuttingschedulereportdownload.click();
+		Thread.sleep(1000);
+		installationreportdownload.click();
+	}
+	
+}

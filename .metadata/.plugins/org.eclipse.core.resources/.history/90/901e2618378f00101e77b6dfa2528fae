@@ -1,0 +1,263 @@
+package util;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
+import java.util.Map;
+
+public class CanvasPage {
+
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final JavascriptExecutor js;
+
+    public CanvasPage(WebDriver driver, Duration timeout) {
+        this.driver = driver;
+        this.wait   = new WebDriverWait(driver, timeout);
+        this.js     = (JavascriptExecutor) driver;
+    }
+
+    private By canvasLocator() {
+        return By.cssSelector("app-drawing-board canvas");
+    }
+
+    /** Drag any palette tile (cdk-drag) to the canvas at (fx, fy) where fx/fy are 0..1 fractions. */
+    public void dragToCanvas(WebElement source, int fx, int fy) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(canvasLocator()));
+
+        // Make sure both are in view for reliable pointer math
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", source);
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // Snapshot canvas to confirm change later
+        String before = (String) js.executeScript("return arguments[0].toDataURL('image/png');", canvas);
+
+        // Get viewport rects in CSS pixels (safe wrt zoom/scroll)
+        @SuppressWarnings("unchecked")
+        Map<String, Number> s = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height};", source);
+        @SuppressWarnings("unchecked")
+        Map<String, Number> c = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height};", canvas);
+
+        int startX = (int) Math.round(s.get("x").doubleValue() + s.get("w").doubleValue()/2.0);
+        int startY = (int) Math.round(s.get("y").doubleValue() + s.get("h").doubleValue()/2.0);
+        int endX   = (int) Math.round(c.get("x").doubleValue() + c.get("w").doubleValue()*fx);
+        int endY   = (int) Math.round(c.get("y").doubleValue() + c.get("h").doubleValue()*fy);
+
+        // Actions sequence: nudge to start CDK drag -> move to canvas point -> tiny jiggle -> release
+        int nudgeX = 50, nudgeY = 50;                   // exceed CDK drag threshold
+        int dx = (endX - startX) - nudgeX;
+        int dy = (endY - startY) - nudgeY;
+        
+        
+        new Actions(driver)
+            .moveToElement(source)                     // centers by default
+            .clickAndHold()
+            .pause(Duration.ofMillis(200))
+            .moveByOffset(10, 10)
+            .pause(Duration.ofMillis(120))
+            .moveToElement(canvas, fx ,fy )
+            .moveByOffset(3, 3)                        // jiggle so canvas sees a move
+            .pause(Duration.ofMillis(80))
+            .release()
+            .perform();
+
+        // If pixels didn’t change, use PointerEvents fallback (some canvas apps need it)
+        String after = (String) js.executeScript("return arguments[0].toDataURL('image/png');", canvas);
+        if (before != null && before.equals(after)) {
+            pointerEventsFallback(source, endX, endY);
+        }
+    }
+
+    /** Synthetic pointer events at viewport (x,y) – robust for canvas listeners on document/window. */
+    private void pointerEventsFallback(WebElement source, int x, int y) {
+        String script =
+            "const src=arguments[0], x=arguments[1], y=arguments[2];" +
+            "const id=1;" +
+            "function pe(t,el,x,y){el.dispatchEvent(new PointerEvent(t,{pointerId:id,pointerType:'mouse',bubbles:true,cancelable:true,buttons:1,clientX:x,clientY:y,isPrimary:true}));}" +
+            "function me(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,buttons:1,clientX:x,clientY:y}));}" +
+            "pe('pointerdown',src,0,0); me('mousedown',src,0,0);" +
+            "pe('pointermove',document,x,y); me('mousemove',document,x,y);" +
+            "pe('pointermove',document,x+4,y+4); me('mousemove',document,x+4,y+4);" +
+            "pe('pointerup',document,x+4,y+4); me('mouseup',document,x+4,y+4);";
+        js.executeScript(script, source, x, y);
+    }
+
+ 
+    /** Debug click that shows a visual marker at the target (fx,fy) for 'ms' milliseconds. */
+    public void clickCanvasAtFraction(double fx, double fy, int ms) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector("app-drawing-board canvas")));
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // Compute viewport coords
+        Map<String, Number> r = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect();" +
+            "return {l:b.left,t:b.top,w:b.width,h:b.height};", canvas);
+        double left = r.get("l").doubleValue(),  top = r.get("t").doubleValue();
+        double w    = r.get("w").doubleValue(),  h   = r.get("h").doubleValue();
+
+        int x = (int)Math.round(left + Math.max(1, Math.min(w-2, w*fx)));
+        int y = (int)Math.round(top  + Math.max(1, Math.min(h-2, h*fy)));
+
+        // Inject a non-interactive marker (so it won't block the click)
+        js.executeScript(
+            "const x=arguments[0], y=arguments[1], ms=arguments[2];" +
+            "const m=document.createElement('div');" +
+            "m.style.cssText=" +
+            "'position:fixed;left:'+(x-8)+'px;top:'+(y-8)+'px;width:16px;height:16px;" +
+            "border:2px solid red;border-radius:50%;background:rgba(255,0,0,.2);" +
+            "box-shadow:0 0 0 2px rgba(255,0,0,.35);z-index:2147483647;pointer-events:none;" +
+            "transform:scale(1);transition:transform .15s ease-out;';" +
+            "document.body.appendChild(m);" +
+            "setTimeout(()=>m.style.transform='scale(1.6)', 0);" +
+            "setTimeout(()=>{m.remove();}, ms);",
+            x, y, ms
+        );
+
+        // Perform the actual click at that fraction using Actions (center-based offset)
+        Rectangle rr = canvas.getRect();
+        int ix = (int)Math.round(Math.max(1, Math.min(rr.getWidth()-2, rr.getWidth()*fx)));
+        int iy = (int)Math.round(Math.max(1, Math.min(rr.getHeight()-2, rr.getHeight()*fy)));
+        int fromCenterX = -rr.getWidth()/2  + ix;
+        int fromCenterY = -rr.getHeight()/2 + iy;
+
+        new Actions(driver)
+            .moveToElement(canvas)                 // element center
+            .moveByOffset(fromCenterX, fromCenterY)
+            .pause(Duration.ofMillis(100))         // brief pause so you can see the marker
+            .click()
+            .perform();
+
+        System.out.printf("Clicked canvas at fraction (%.2f, %.2f) -> viewport (%d,%d)%n", fx, fy, x, y);
+    }
+
+    
+
+    @SuppressWarnings("unchecked")
+    public void clickCanvasAtFractionExact(double fx, double fy) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector("app-drawing-board canvas")));
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        Map<String, Number> r = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect();" +
+            "return {l:b.left,t:b.top,w:b.width,h:b.height};", canvas);
+
+        double l = r.get("l").doubleValue(), t = r.get("t").doubleValue();
+        double w = r.get("w").doubleValue(), h = r.get("h").doubleValue();
+
+        double cx = l + Math.max(1, Math.min(w - 2, w * fx));
+        double cy = t + Math.max(1, Math.min(h - 2, h * fy));
+
+        js.executeScript(
+            "const el=arguments[0], x=arguments[1], y=arguments[2];" +
+            "['pointermove','pointerdown','pointerup','click'].forEach(t=>" +
+            "  el.dispatchEvent(new PointerEvent(t,{bubbles:true,cancelable:true," +
+            "    pointerType:'mouse', clientX:x, clientY:y, buttons:1})) );",
+            canvas, cx, cy
+        );
+    }
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /** Click just OUTSIDE the measured blue rectangle on the given side.
+     *  side: "top" | "bottom" | "left" | "right"
+     *  marginPx: how far outside the blue rect edge to click (pixels)
+     *  If the computed point would go past canvas bounds, it's clamped safely inside.
+     */
+    @SuppressWarnings("unchecked")
+    public void clickOutsideBlue(String side, int marginPx) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector("app-drawing-board canvas")));
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // 1) Measure the inner blue rectangle: {x,y,w,h} relative to canvas top-left
+        int[] r = measureInnerBlueRect();
+        int rx = r[0], ry = r[1], rw = r[2], rh = r[3];
+
+        // 2) Canvas rendered rect on screen
+        Map<String, Number> bcr = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {l:b.left,t:b.top,w:b.width,h:b.height};",
+            canvas);
+        int cw = bcr.get("w").intValue(), ch = bcr.get("h").intValue();
+
+        // 3) Compute a point just outside the blue rect, then clamp to the canvas area
+        int px, py;
+        switch (side.toLowerCase()) {
+            case "top":
+                px = rx + rw/2;
+                py = ry - marginPx;
+                break;
+            case "bottom":
+                px = rx + rw/2;
+                py = ry + rh + marginPx;
+                break;
+            case "left":
+                px = rx - marginPx;
+                py = ry + rh/2;
+                break;
+            case "right":
+                px = rx + rw + marginPx;
+                py = ry + rh/2;
+                break;
+            default:
+                throw new IllegalArgumentException("side must be top/bottom/left/right");
+        }
+
+        // Clamp inside canvas bounds (avoid exact borders)
+        px = Math.max(1, Math.min(cw - 2, px));
+        py = Math.max(1, Math.min(ch - 2, py));
+
+        // 4) Convert to viewport coords and click EXACTLY there via PointerEvents
+        double clientX = bcr.get("l").doubleValue() + px;
+        double clientY = bcr.get("t").doubleValue() + py;
+
+        js.executeScript(
+            "const el=arguments[0], x=arguments[1], y=arguments[2];" +
+            "['pointermove','pointerdown','pointerup','click'].forEach(t=>" +
+            "  el.dispatchEvent(new PointerEvent(t,{bubbles:true,cancelable:true,pointerType:'mouse'," +
+            "    clientX:x, clientY:y, buttons:1})) );",
+            canvas, clientX, clientY
+        );
+    }
+
+    /** Optional: visualize where you're clicking (for debugging). */
+    @SuppressWarnings("unchecked")
+    public void debugMarkCanvasPoint(int px, int py, int ms) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector("app-drawing-board canvas")));
+        Map<String, Number> bcr = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {l:b.left,t:b.top};", canvas);
+        int vx = bcr.get("l").intValue() + px;
+        int vy = bcr.get("t").intValue() + py;
+
+        js.executeScript(
+            "const x=arguments[0], y=arguments[1], ms=arguments[2];" +
+            "const m=document.createElement('div');" +
+            "m.style.cssText='position:fixed;left:'+(x-7)+'px;top:'+(y-7)+'px;width:14px;height:14px;" +
+            "border:2px solid #f33;border-radius:50%;background:rgba(255,0,0,.18);" +
+            "pointer-events:none;z-index:2147483647;';" +
+            "document.body.appendChild(m); setTimeout(()=>m.remove(), ms);", vx, vy, ms
+        );
+    }
+
+    
+    
+}

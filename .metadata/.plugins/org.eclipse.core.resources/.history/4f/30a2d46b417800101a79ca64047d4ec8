@@ -1,0 +1,59 @@
+package Test;
+
+import java.awt.AWTException;
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.testng.annotations.Test;
+import AutoConstant.constantInput;
+import POM.LoginSapphire;
+import POM.NewOpportunityCreate;
+
+public class NewOpportunityAddition implements constantInput
+{
+public WebDriver driver;
+	
+	@SuppressWarnings("deprecation")
+	@Test
+	public void NewOpportunityAdd() throws InterruptedException, AWTException
+	{
+		System.setProperty("webdriver.chrome.driver", "./drivers/chromedriver.exe");
+		ChromeOptions options = new ChromeOptions();
+		options.addArguments("--remote-allow-origins=*");
+		options.addArguments("--incognito");
+		options.addArguments("--headless=new", "--window-size=1920,1080");
+		WebDriver driver = new ChromeDriver(options);
+		driver.manage().window().maximize();
+		driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
+		driver.manage().timeouts().pageLoadTimeout(30, TimeUnit.SECONDS);
+		driver.manage().deleteAllCookies();
+		driver.get(URl);
+	
+		LoginSapphire log = new LoginSapphire(driver);
+		log.LoginMethod();
+		NewOpportunityCreate oppc = new NewOpportunityCreate(driver);
+		oppc.NewCreateOpp();
+		oppc.editopportunity();
+		oppc.dropdownlistitemsDelegateTo();
+		oppc.getDropdownOptionsDelegateTo();
+		oppc.dropdownlistitemsTaskMedium();
+		oppc.getDropdownOptionsTaskMedium();
+		oppc.addtask();
+		oppc.dropdownlistitemsLogMedium();
+		Thread.sleep(2000);
+		oppc.getDropdownOptionsLogMedium();
+		oppc.addlog();
+		oppc.addpayment();
+		oppc.payment2();
+		oppc.getDropdownOptionsPaymentMediums();
+		oppc.payment3();
+		oppc.documentsUpload();
+//		oppc.updatestage();
+//		oppc.markaslost();
+//		oppc.markaswon();
+		
+	}
+}
+
+

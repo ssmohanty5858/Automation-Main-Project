@@ -1,0 +1,150 @@
+package POM;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.testng.Assert;
+
+public class OppTouchpoint 
+{
+	int rdmnumber=(int)(Math.random()*1000);
+	
+	@FindBy(xpath="//li[@ngbtooltip='Opportunity']")
+	private WebElement opportunitytab;
+	
+	@FindBy(xpath="(//span[@class='badge-circle ms-4'])[1]")
+	private WebElement touchpoint;
+	
+	@FindBy(xpath="//button[.='Add log']")
+	private WebElement addlogbutton;
+	
+	@FindBy(xpath="//input[@formcontrolname='taskLogTitle']")
+	private WebElement logtitle;
+	  
+	@FindBy(xpath="(//input[@data-bs-toggle='dropdown'])[1]")
+	private WebElement logmedium;
+	  
+	@FindBy(xpath="(//a[@class='dropdown-item'])[4]")
+	private WebElement journal;
+	  
+	@FindBy(xpath="//textarea[@formcontrolname='taskLogDescription']")
+	private WebElement logdescription;
+	  
+	@FindBy(xpath="//div[@class='tag-group form-control']")
+	private WebElement urgencydd;
+	  
+	@FindBy(xpath="(//input[@placeholder='Search...'])[2]")
+	private WebElement searchbarurgency;
+	  
+	@FindBy(xpath="(//div[@class='dropdown-items'])[3]")
+	private WebElement urgent;
+	  
+	@FindBy(xpath="//button[@type='submit']")
+	private WebElement create;
+	  
+	@FindBy(xpath="//button[.='Add task']")
+	private WebElement addtasktouch;
+	  
+	@FindBy(xpath="//input[@formcontrolname='taskLogTitle']")
+	private WebElement tasktitle;  //sendkeys
+	  
+	@FindBy(xpath="(//input[@class='form-control'])[1]")
+	private WebElement delegatetodd;
+	  
+	@FindBy(xpath="(//input[@placeholder='Search...'])[1]")
+	private WebElement searchbardelegateto;
+	  
+	@FindBy(xpath="(//div[@class='dropdown-items'])[1]")
+	private WebElement dali;
+	  
+	@FindBy(xpath="(//input[@class='form-control'])[2]")
+	private WebElement logmedium2;
+	  
+	@FindBy(xpath="//a[contains(text(),'Mail')]")
+	private WebElement mail;
+	  
+	@FindBy(xpath="//input[@formcontrolname='scheduledDateTime']")
+	private WebElement schedule;
+	  
+	@FindBy(xpath="//span[.='18']")
+	private WebElement date;
+	  
+	@FindBy(xpath="(//button[@type='button'])[14]")
+	private WebElement setbutton;
+	  
+	@FindBy(xpath="//app-eva-dropdown[@formcontrolname='opportunityStagesId']")
+	private WebElement opportunitystage;
+	  
+	@FindBy(xpath="//button[@type='submit']")
+	private WebElement create2;
+	
+	@FindBy(xpath="(//input[@type='checkbox'])[5]")
+	private WebElement whatsappcheckbox;
+		
+	@FindBy(xpath="//div[@role='alertdialog']")
+	private WebElement alertmessage;
+	
+	public OppTouchpoint (WebDriver driver)
+	{
+		PageFactory.initElements(driver, this);
+	}
+	  
+	public void touchlog() throws InterruptedException
+	 {
+		  opportunitytab.click();
+		 
+		  touchpoint.click();
+		  
+		  addlogbutton.click(); 
+		
+		  logtitle.sendKeys("Automation Test"+rdmnumber); 
+		  
+		  logmedium.click();
+		 
+		  journal.click(); 
+		
+		  logdescription.sendKeys("Test"+rdmnumber); 
+		 
+		  urgencydd.click();
+		 
+		  searchbarurgency.sendKeys("Urgent"); 
+		 
+		  urgent.click();
+	
+		  create.click();
+		  Thread.sleep(2000);
+		  addtasktouch.click();
+		 
+		  tasktitle.sendKeys("AutoTest"+rdmnumber);
+		 Thread.sleep(2000);
+		  delegatetodd.click();
+		  
+		  searchbardelegateto.sendKeys("dali");
+		
+		  dali.click();
+		 
+		  logmedium2.click();
+		 
+		  mail.click();
+		
+		  schedule.click();
+		  Thread.sleep(2000);
+		  date.click();
+		  Thread.sleep(2000);
+		  setbutton.click();
+		  Thread.sleep(2000);
+		  create2.click();
+		  Thread.sleep(1000);
+		  whatsappcheckbox.click();
+		 		  
+	  }
+	
+	public void alertconfirmation()
+	{
+		String actualmsg= alertmessage.getText();
+		String expectedmsg="Data saved successfully";
+		Assert.assertEquals(actualmsg, expectedmsg);
+		System.out.println(actualmsg);
+	}
+}

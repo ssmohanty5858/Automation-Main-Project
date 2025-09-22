@@ -1,0 +1,697 @@
+package POM;
+
+import util.UIActions;
+import util.Log;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.Date;
+import java.util.List;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.*;
+import org.openqa.selenium.support.ui.*;
+
+public class NewOpportunityCreate {
+
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final UIActions ui;
+
+    private final int rdmnumber = (int) (Math.random() * 1000);
+    private final String formattedDate = new SimpleDateFormat(" MMM dd yyyy").format(new Date());
+
+    // NAV / TABS
+    @FindBy(xpath="(//div[@routerlinkactive='active'])[4]")
+    private WebElement opportunitytab;
+
+    @FindBy(xpath="//a[contains(text(),'Create opportunity')]")
+    private WebElement createopportunitytab;
+
+    // CREATE FORM
+    @FindBy(xpath="(//input[@type='text'])[1]")
+    private WebElement projectname;
+
+    @FindBy(xpath="(//input[@type='text'])[2]")
+    private WebElement firstname;
+
+    @FindBy(xpath="(//input[@type='text'])[3]")
+    private WebElement lastname;
+
+    @FindBy(xpath="(//input[@type='text'])[4]")
+    private WebElement phonenumber;
+
+    @FindBy(xpath="(//input[@type='text'])[5]")
+    private WebElement emailid;
+
+    @FindBy(xpath="//textarea[@type='text']")
+    private WebElement notetextarea;
+
+    @FindBy(xpath="(//input[@type='text'])[6]")
+    private WebElement address1;
+
+    @FindBy(xpath="(//input[@type='text'])[7]")
+    private WebElement address2;
+
+    @FindBy(xpath="//button[contains(text(),'Next')]")
+    private WebElement nextbutton;
+
+    @FindBy(xpath="(//div[@class='position-relative input-area'])[5]")
+    private WebElement opportunitysourcedropdown;
+
+    @FindBy(xpath="(//a[@class='dropdown-item c-pointer text-wrap body-1'])[2]")
+    private WebElement website;
+
+    @FindBy(xpath="//button[contains(text(),'Save')]")
+    private WebElement savebutton;
+
+    // ACTION MENU / COMMON
+    @FindBy(xpath="(//app-table//div[contains(@class,'table-body')]//div[contains(@class,'table-row')]//app-action-menu//button)[1]")
+    private WebElement actionbutton;
+
+    @FindBy(xpath="//a[.='Add task']")
+    private WebElement addtasktab;
+
+    @FindBy(xpath="//a[.='Add log']")
+    private WebElement addlogtab;
+
+    @FindBy(xpath="//a[.='View payment']")
+    private WebElement viewpayment;
+
+    @FindBy(xpath="//a[.='Transfer']")
+    private WebElement transferopportunity;
+
+    @FindBy(xpath="//a[.='Mark as lost']")
+    private WebElement markaslosttab;
+
+    @FindBy(xpath="//a[.='Edit']")
+    private WebElement edittab;
+
+    @FindBy(xpath="//a[.='Update stage']")
+    private WebElement updatestagetab;
+
+    @FindBy(xpath="//a[.='Manage documents']")
+    private WebElement managedocumentstab;
+
+    // MANAGE DOCUMENTS
+    @FindBy(xpath="(//button[.='Upload'])[1]")
+    private WebElement uploadbutton;
+
+    @FindBy(xpath="//button[contains(text(),'Choose file')]")
+    private WebElement choosefiletab;
+
+    @FindBy(xpath="(//button[.='Upload'])[2]")
+    private WebElement uploadbutton2;
+
+    @FindBy(css="input[type='file']")
+    private List<WebElement> fileInputs;
+
+    // MANAGE MEMBERS
+    @FindBy(xpath="//a[.='Manage members']")
+    private WebElement managememberstab;
+
+    @FindBy(xpath="//button[contains(text(),'Add member')]")
+    private WebElement addmembertab;
+
+    @FindBy(xpath="(//input[@id=' Member name'])[2]")
+    private WebElement membernamedropdown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+    private List<WebElement> managemebersoptions;
+
+    @FindBy(xpath="(//input[@id='Access type'])[2]")
+    private WebElement accesstypedropdown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+    private List<WebElement> accesstypeoptions;
+
+    @FindBy(xpath="//button[.='Update']")
+    private WebElement updatebutton;
+
+    // ADD TASK
+    @FindBy(xpath="(//input[@type='text'])[2]")
+    private WebElement tasktitle;
+
+    @FindBy(xpath="//input[@id='Delegate to']")
+    private WebElement delegatetodropdown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted']")
+    private List<WebElement> delegatetodropdowndropdownoptions;
+
+    @FindBy(xpath="//input[@id='Task medium']")
+    private WebElement taskmediumdropdown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted']")
+    private List<WebElement> taskmediumdropdownoptions;
+
+    @FindBy(xpath="(//input[@type='text'])[5]")
+    private WebElement calendartab;
+
+    @FindBy(xpath="//span[.='23']")
+    private WebElement datepicker;
+
+    @FindBy(xpath="//button[contains(text(),'Set')]")
+    private WebElement setbutton;
+
+    @FindBy(xpath="//textarea[@type='text']")
+    private WebElement taskdescriptiontextarea;
+
+    @FindBy(xpath="//button[.='Create']")
+    private WebElement createbutton;
+
+    // ADD LOG
+    @FindBy(xpath="(//input[@autocomplete='off'])[5]")
+    private WebElement logtitile;
+
+    @FindBy(xpath="//input[@id='Log medium']")
+    private WebElement logmediumdrodown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted']")
+    private List<WebElement> logmediumdropdownoptions;
+
+    @FindBy(xpath="//textarea[@autocomplete='off']")
+    private WebElement logdescription;
+
+    // PAYMENT
+    @FindBy(xpath="//button[contains(text(),'Add')]")
+    private WebElement addpaymentbutton;
+
+    @FindBy(xpath="//input[@id='Payment medium']")
+    private WebElement paymentmediumdropdown;
+
+    @FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted']")
+    private List<WebElement> paymentmediums;
+
+    @FindBy(xpath="(//input[@type='text'])[2]")
+    private WebElement transactionnotextfield;
+
+    @FindBy(xpath="(//input[@type='text'])[3]")
+    private WebElement amounttextfield;
+
+    @FindBy(xpath="(//input[@type='text'])[4]")
+    private WebElement paymentdatecalendar;
+
+    @FindBy(xpath="//textarea[@type='text']")
+    private WebElement paymentdescriptiontextarea;
+
+    @FindBy(xpath="//button[.='Add']")
+    private WebElement addbutton;
+
+    // WON / LOST
+    @FindBy(xpath="//a[.='Mark as won']")
+    private WebElement markaswontab;
+
+    @FindBy(xpath="//input[@id='Stage']")
+    private WebElement stagedropdwon;
+
+    @FindBy(xpath="(//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted'])[2]")
+    private WebElement advancereceived;
+
+    @FindBy(xpath="(//span[.='30'])[2]")
+    private WebElement datepickaswon;
+
+    @FindBy(xpath="//button[.='Save']")
+    private WebElement wonsavebutton;
+
+    @FindBy(xpath="//input[@id='Reason']")
+    private WebElement reasondropdown;
+
+    @FindBy(xpath="(//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted'])[2]")
+    private WebElement selectreason;
+
+    @FindBy(xpath="(//a[@class='dropdown-item c-pointer text-wrap ng-star-inserted'])[67]")
+    private WebElement stagesalescall;
+
+    // SEARCH / SORT
+    @FindBy(xpath="//input[@placeholder='Search']")
+    private WebElement searchbar;
+
+    @FindBy(xpath="//div[@class='sort-by']")
+    private WebElement sortby;
+
+    @FindBy(xpath="//a[.='Opportunity value: Low to High']")
+    private WebElement oppvaluelowtohigh;
+
+    // Referenced in updatestage()
+    @FindBy(xpath="(//a[@class='dropdown-item c-pointer text-wrap'])[5]")
+    private WebElement negotiationstage;
+
+    public NewOpportunityCreate(WebDriver driver) {
+        this.driver = driver;
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        this.ui = new UIActions(driver);
+        PageFactory.initElements(driver, this);
+    }
+
+    // =========================== FLOWS =============================
+    public void NewCreateOpp() throws InterruptedException {
+        ui.click(opportunitytab, "Open Opportunities");
+        ui.click(createopportunitytab, "Create opportunity");
+
+        ui.type(projectname, "SSM Automation " + rdmnumber + formattedDate, "Project");
+        ui.type(firstname, "SSM" + rdmnumber, "First");
+        ui.type(lastname, "User" + rdmnumber, "Last");
+        ui.type(phonenumber, "258963314" + rdmnumber, "Phone");
+        ui.type(emailid, "opp" + rdmnumber + "@eva.com", "Email");
+        ui.type(notetextarea, "Note test " + formattedDate, "Note");
+        ui.type(address1, "Uganda", "Address1");
+        ui.type(address2, "Philadelphia", "Address2");
+        selectFirstFromLazySelect("City");
+        ui.click(nextbutton, "Next");
+        fillOfficialInfoSectionIfPresent();
+        fillAllOpportunityTagDropdowns();
+        ui.click(savebutton, "Save opportunity");
+    }
+
+    // ---- Add Task ----
+    public void dropdownlistitemsDelegateTo() {
+        ui.click(actionbutton, "Action -> Add task");
+        ui.click(addtasktab, "Add task");
+        ui.type(tasktitle, "SSM Task Title " + rdmnumber + formattedDate, "Task title");
+        ui.click(calendartab, "Open date");
+        ui.click(datepicker, "Pick date");
+        ui.click(setbutton, "Set date");
+        ui.type(taskdescriptiontextarea, "Test Task Description " + formattedDate, "Task Desc");
+        ui.click(delegatetodropdown, "Open DelegateTo");
+    }
+    private static final By FIRST_OPTION_FAST = By.xpath(
+            "//*[contains(@class,'dropdown-menu') and contains(@class,'show')]//a[contains(@class,'dropdown-item')]" +
+            "[not(contains(@class,'disabled')) and not(@aria-disabled='true')][normalize-space()][1]"
+        );
+
+    public void pickDelegateTo() {
+        ui.selectFromOpenDropdown(FIRST_OPTION_FAST);
+    }
+
+    public void dropdownlistitemsTaskMedium() {
+        ui.click(taskmediumdropdown, "Open Task medium");
+    }
+
+    public void pickTaskMedium() {
+    	ui.selectFromOpenDropdown(FIRST_OPTION_FAST);
+    }
+
+    public void addtask() {
+        ui.click(createbutton, "Create task");
+    }
+
+    // ---- Manage members ----
+    public void dropdownManageMebers() {
+        ui.click(actionbutton, "Action -> Manage members");
+        ui.click(managememberstab, "Manage members");
+        ui.click(addmembertab, "Add member");
+        ui.click(membernamedropdown, "Open member list");
+    }
+
+    public void pickMember(String visibleText) {
+        pickFromList(managemebersoptions, visibleText, "Member");
+    }
+
+    public void dropdownAccessType() {
+        ui.click(accesstypedropdown, "Open Access type");
+    }
+
+    public void pickAccessType(String visibleText) {
+        pickFromList(accesstypeoptions, visibleText, "Access type");
+        ui.click(updatebutton, "Update members");
+    }
+
+    // ---- Documents upload (NO Robot) ----
+    public void documentsUpload() {
+        ui.click(opportunitytab, "Back to list");
+        ui.click(actionbutton, "Action -> Manage documents");
+        ui.click(managedocumentstab, "Manage documents");
+        ui.click(uploadbutton, "Upload");
+        ui.click(choosefiletab, "Choose file");
+
+        WebElement input = firstDisplayed(fileInputs);
+        if (input == null) throw new IllegalStateException("No visible <input type='file'> found");
+
+        Path file = Paths.get(System.getProperty("oppDoc",
+                "D:\\S S Mohanty\\Test Cases\\Test Materials\\Apple.test.jpg"));
+        ui.uploadFile(input, file.toAbsolutePath(), "Opportunity document");
+
+        ui.click(uploadbutton2, "Upload confirm");
+    }
+
+    // ---- Add Log ----
+    public void dropdownlistitemsLogMedium() {
+        ui.click(actionbutton, "Action -> Add log");
+        ui.click(addlogtab, "Add log");
+        ui.type(logtitile, "SSM Log Title " + formattedDate, "Log title");
+        ui.click(logmediumdrodown, "Open Log medium");
+    }
+
+    public void pickLogMedium() {
+    	ui.selectFromOpenDropdown(FIRST_OPTION_FAST);
+    }
+
+    public void addlog() {
+        ui.type(logdescription, "Log description " + formattedDate, "Log description");
+        ui.click(createbutton, "Create log");
+    }
+
+    // ---- Payments ----
+    public void addpayment() {
+        ui.click(opportunitytab, "Back to list");
+        ui.click(actionbutton, "Action -> View payment");
+        ui.click(viewpayment, "View payment");
+        ui.click(addpaymentbutton, "Add payment");
+    }
+
+    public void selectPaymentMedium() {
+        ui.click(paymentmediumdropdown, "Open Payment medium");
+        ui.selectFromOpenDropdown(FIRST_OPTION_FAST);
+    }
+
+    public void payment2() {
+        ui.type(transactionnotextfield, "258963", "Transaction no");
+        ui.type(amounttextfield, "5000001", "Amount");
+        ui.click(paymentdatecalendar, "Payment date");
+        ui.click(datepicker, "Pick date");
+        ui.click(setbutton, "Set date");
+        ui.type(paymentdescriptiontextarea, "Test " + formattedDate, "Payment desc");
+    }
+
+    public void payment3() {
+        ui.click(addbutton, "Add payment");
+    }
+
+    // ---- Won / Lost ----
+    public void markaswon() {
+        ui.click(actionbutton, "Action -> Mark as won");
+        ui.click(markaswontab, "Mark as won");
+        ui.click(stagedropdwon, "Stage");
+        ui.click(advancereceived, "Stage: advance received");
+        ui.click(calendartab, "Open date");
+        ui.click(datepickaswon, "Pick date");
+        ui.click(wonsavebutton, "Save won");
+    }
+
+    public void markaslost() {
+        ui.click(actionbutton, "Action -> Mark as lost");
+        ui.click(markaslosttab, "Mark as lost");
+        ui.click(reasondropdown, "Reason");
+        ui.click(selectreason, "Pick reason");
+        ui.click(stagedropdwon, "Stage");
+        ui.click(stagesalescall, "Stage: sales call");
+        ui.click(wonsavebutton, "Save lost");
+    }
+
+    // ---- Edit / Update stage / Sort ----
+    public void editopportunity() {
+        ui.click(opportunitytab, "Back to list");
+        ui.click(actionbutton, "Action -> Edit");
+        ui.click(edittab, "Edit");
+        ui.type(notetextarea, "Edit Opp " + formattedDate, "Note");
+        ui.click(nextbutton, "Next");
+        ui.click(savebutton, "Save");
+    }
+
+    public void updatestage() {
+        ui.click(actionbutton, "Action -> Update stage");
+        ui.click(updatestagetab, "Update stage");
+        ui.click(stagedropdwon, "Stage");
+        ui.selectFromOpenDropdown(FIRST_OPTION_FAST);
+        ui.click(savebutton, "Save stage");
+        ui.click(sortby, "Sort by");
+        ui.click(oppvaluelowtohigh, "Opp value Low->High");
+    }
+
+    // ======================== HELPERS ==============================
+    private void pickFromList(List<WebElement> options, String visibleText, String action) {
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(20))
+                .until(ExpectedConditions.visibilityOfAllElements(options));
+        } catch (TimeoutException e) {
+            Log.fail(action, "Options not visible in time", e);
+            throw e;
+        }
+        for (WebElement opt : options) {
+            try {
+                if (visibleText.equalsIgnoreCase(opt.getText().trim())) {
+                    ui.click(opt, action + " pick: " + visibleText);
+                    return;
+                }
+            } catch (StaleElementReferenceException ignored) {}
+        }
+        throw new NoSuchElementException("Option not found: " + visibleText);
+    }
+
+    private WebElement firstDisplayed(List<WebElement> candidates) {
+        for (WebElement el : candidates) {
+            try {
+                if (el.isDisplayed() && el.isEnabled()) return el;
+            } catch (StaleElementReferenceException ignored) {}
+        }
+        return null;
+    }
+    
+    
+    /////Fill city///////
+    
+    public boolean selectFirstFromLazySelect(String inputId) {
+        By trigger = By.xpath("//input[@id='" + inputId + "' and @data-bs-toggle='dropdown']");
+        By menu    = By.cssSelector(".dropdown-menu.show, .show .dropdown-menu");
+        By options = By.xpath("//*[contains(@class,'dropdown-menu') and contains(@class,'show')]//a[contains(@class,'dropdown-item')]");
+
+        int attempts = 0;
+        while (attempts++ < 3) {
+            try {
+                // 1) Re-locate the trigger fresh each attempt
+                WebElement input = wait.until(ExpectedConditions.elementToBeClickable(trigger));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", input);
+                input.click();
+
+                // 2) Wait for menu & options to be present (re-located fresh)
+                wait.until(ExpectedConditions.presenceOfElementLocated(menu));
+                wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(options, 0));
+
+                // 3) Choose the first non-empty option
+                java.util.List<WebElement> opts = driver.findElements(options);
+                WebElement first = null;
+                for (WebElement op : opts) {
+                    String t = op.getText() == null ? "" : op.getText().trim();
+                    if (!t.isEmpty()) { first = op; break; }
+                }
+                if (first == null) first = opts.get(0);
+
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", first);
+                try {
+                    wait.until(ExpectedConditions.elementToBeClickable(first)).click();
+                } catch (org.openqa.selenium.ElementClickInterceptedException | org.openqa.selenium.StaleElementReferenceException e) {
+                    // fallback if overlay/animation interferes
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", first);
+                }
+
+                // 4) Confirm selection by waiting menu to close or value to change
+                try {
+                    wait.until(ExpectedConditions.invisibilityOfElementLocated(menu));
+                } catch (TimeoutException ignored) {
+                    // try to close politely if menu lingers
+                    input.sendKeys(Keys.ESCAPE);
+                }
+                return true;
+
+            } catch (org.openqa.selenium.StaleElementReferenceException | TimeoutException e) {
+                // re-try: re-locate fresh on next loop
+                try { driver.switchTo().defaultContent(); } catch (Exception ignored) {}
+            }
+        }
+        return false; // after retries
+    }
+    private static final By OPP_TAG_DROPDOWNS =
+            By.xpath("//app-multiselect[@formcontrolname='opportunityTag']");
+    private static final By OPEN_MENU = By.cssSelector(".dropdown-menu.show, .show .dropdown-menu");
+    // headers that bound the section
+    private static final By OFFICIAL_INFO_HDR = By.xpath("//*[normalize-space()='Official info']");
+    private static final By OPP_TAGS_HDR      = By.xpath("//*[normalize-space()='Opportunity tags']");
+
+    // any dropdown-type control between the two headers
+    private static final By OFFICIAL_INFO_DROPDOWNS = By.xpath(
+        "//*[normalize-space()='Official info']/following::input[@type='text' and @data-bs-toggle='dropdown']" +
+        "[following::*[normalize-space()='Opportunity tags']]"
+    );
+    // short waits to speed things up
+    private WebDriverWait shortWait() { return new WebDriverWait(driver, Duration.ofSeconds(2)); }
+    private void selectFromOpenDropdown() {
+        // use the precise “first option” locator to avoid scanning all options
+        WebElement first = shortWait().until(ExpectedConditions.elementToBeClickable(FIRST_OPTION_FAST));
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'})", first);
+        try {
+            first.click();
+        } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click()", first);
+        }
+        // don’t block on menu invisibility; that was slowing things down
+    }
+    /** Open a dropdown reliably, but with short waits so it’s fast. */
+    private void safeOpenDropdown(WebElement trigger) {
+        ((JavascriptExecutor) driver).executeScript(
+            "arguments[0].scrollIntoView({block:'center'})", trigger);
+        // try normal click; fall back to JS once
+        try {
+            shortWait().until(ExpectedConditions.elementToBeClickable(trigger)).click();
+        } catch (ElementClickInterceptedException e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click()", trigger);
+        }
+        // menu present and has at least one option (short wait)
+        shortWait().until(ExpectedConditions.presenceOfElementLocated(OPEN_MENU));
+        shortWait().until(ExpectedConditions.presenceOfElementLocated(FIRST_OPTION_FAST));
+    }
+    public void fillOfficialInfoSectionIfPresent() throws InterruptedException {
+        if (driver.findElements(OFFICIAL_INFO_HDR).isEmpty() ||
+            driver.findElements(OPP_TAGS_HDR).isEmpty()) {
+            return;
+        }
+
+        List<WebElement> dropdowns = driver.findElements(OFFICIAL_INFO_DROPDOWNS);
+        for (int i = 0; i < dropdowns.size(); i++) {
+            try {
+                WebElement dd = driver.findElements(OFFICIAL_INFO_DROPDOWNS).get(i);
+                safeOpenDropdown(dd);
+                selectFromOpenDropdown();
+            } catch (Exception ignored) {}
+        }
+       
+    }
+    
+    /** Fast fill: open each app-multiselect (opportunityTag) and click the first option. */
+    public void fillAllOpportunityTagDropdowns() {
+        List<WebElement> dropdowns = wait.until(d -> {
+            List<WebElement> els = driver.findElements(OPP_TAG_DROPDOWNS);
+            return (els == null || els.isEmpty()) ? null : els;
+        });
+
+        for (int i = 0; i < dropdowns.size(); i++) {
+            try {
+                WebElement dd = driver.findElements(OPP_TAG_DROPDOWNS).get(i);
+                ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'})", dd);
+
+                // click the component’s value area (fast-open)
+                WebElement openTarget;
+                try {
+                    openTarget = dd.findElement(By.xpath(".//div[contains(@class,'value-container')]"));
+                } catch (NoSuchElementException e1) {
+                    try {
+                        openTarget = dd.findElement(By.xpath(".//span[contains(@class,'input-container')]"));
+                    } catch (NoSuchElementException e2) {
+                        openTarget = dd;
+                    }
+                }
+
+                safeOpenDropdown(openTarget);  // short waits
+                selectFromOpenDropdown();      // first option (fast)
+
+            } catch (StaleElementReferenceException ignored) {
+                // one retry on staleness
+                try {
+                    WebElement dd = driver.findElements(OPP_TAG_DROPDOWNS).get(i);
+                    safeOpenDropdown(dd);
+                    selectFromOpenDropdown();
+                } catch (Exception ignore) {}
+            } catch (Exception ignore) {}
+        }
+    }
+    
+    // ---------- Wind Load & Region Parameters ----------
+    
+    private static final By FOOTER_NEXT = By.xpath("//div[contains(@class,'eds-form-footer-buttons')]//button[normalize-space()='Next']");
+    private static final By FOOTER_SAVE = By.xpath("//div[contains(@class,'eds-form-footer-buttons')]//button[normalize-space()='Save']");
+
+    private static final By WINDLOAD_HEADING =
+        By.xpath("//app-stepper//div[contains(@class,'step-details')]//div[contains(@class,'heading')][normalize-space()='Wind Load']");
+
+    private static final By REGION_PARAMS_HDR =
+        By.xpath("//*[normalize-space()='Region Parameters']");
+
+    private static final By REGION_PARAMS_DROPDOWNS =
+        By.xpath("(//*[normalize-space()='Region Parameters']" +
+                 "/following::input[@data-bs-toggle='dropdown']" +
+                 "[following::div[@class='position-relative input-area']])");
+    
+    private WebElement firstDisplayed(By by) {
+        for (WebElement e : driver.findElements(by)) {
+            try { if (e.isDisplayed() && e.isEnabled()) return e; } catch (StaleElementReferenceException ignored) {}
+        }
+        return null;
+    }
+    
+    private WebElement waitFirstDisplayed(By by, Duration timeout) {
+        long end = System.currentTimeMillis() + timeout.toMillis();
+        while (System.currentTimeMillis() < end) {
+            WebElement e = firstDisplayed(by);
+            if (e != null) return e;
+            try { Thread.sleep(120); } catch (InterruptedException ignored) {}
+        }
+        return null;
+    }
+    private boolean clickFirstIfPresent(By by, Duration timeout) {
+        WebElement e = waitFirstDisplayed(by, timeout);
+        if (e == null) return false;
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'})", e);
+        try { wait.until(ExpectedConditions.elementToBeClickable(e)).click(); }
+        catch (ElementClickInterceptedException | StaleElementReferenceException ex) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click()", e);
+        }
+        return true;
+    }
+    
+    /** Decide: if Next exists (Wind Load) -> go, fill Region Parameters (first options), Save; else Save directly. */
+    private void continueOrSaveBasedOnWindLoad() {
+        // try to click Next (Wind Load present)
+        boolean wentNext = clickFirstIfPresent(FOOTER_NEXT, Duration.ofSeconds(3));
+
+        if (wentNext) {
+            // wait for step content
+            wait.until(ExpectedConditions.or(
+                ExpectedConditions.presenceOfElementLocated(WINDLOAD_HEADING),
+                ExpectedConditions.presenceOfElementLocated(REGION_PARAMS_HDR)
+            ));
+
+            // fill Region Parameters (if present)
+            fillRegionParametersFirstOptions();
+
+            // try to click Save on the Wind Load step; if not present, fall back to main Save button field
+            if (!clickFirstIfPresent(FOOTER_SAVE, Duration.ofSeconds(3))) {
+                try {ui. click(savebutton, "Clicked on svae button"); } catch (Exception ignored) {}
+            }
+            return;
+        }
+
+        // No Next → save on current step
+        if (!clickFirstIfPresent(FOOTER_SAVE, Duration.ofSeconds(3))) {
+            try {ui. click(savebutton,"Clicked on saved button"); } catch (Exception ignored) {}
+        }
+    }
+    
+    /** Selects the first option for every dropdown under "Region Parameters". */
+    private void fillRegionParametersFirstOptions() {
+        if (driver.findElements(REGION_PARAMS_HDR).isEmpty()) return;
+
+        // snapshot to avoid re-query shrinking the list mid-iteration
+        List<WebElement> controls = new java.util.ArrayList<>(driver.findElements(REGION_PARAMS_DROPDOWNS));
+        for (WebElement trigger : controls) {
+            try {
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'})", trigger);
+                // open quickly and robustly
+                try { wait.until(ExpectedConditions.elementToBeClickable(trigger)).click(); }
+                catch (ElementClickInterceptedException e) { ((JavascriptExecutor) driver).executeScript("arguments[0].click()", trigger); }
+                // pick first option from the open menu
+                selectFromOpenDropdown();
+            } catch (StaleElementReferenceException ignored) {
+                // if the snapshot element went stale, try the first currently visible control once
+                WebElement fresh = firstDisplayed(REGION_PARAMS_DROPDOWNS);
+                if (fresh != null) {
+                    try {
+                        wait.until(ExpectedConditions.elementToBeClickable(fresh)).click();
+                        selectFromOpenDropdown();
+                    } catch (Exception ignore) {}
+                }
+            } catch (Exception ignore) {}
+        }
+    }
+}

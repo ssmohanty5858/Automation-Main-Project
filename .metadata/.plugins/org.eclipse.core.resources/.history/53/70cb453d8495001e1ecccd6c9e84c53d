@@ -1,0 +1,1186 @@
+package POM;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.testng.Assert;
+
+public class QuotePage
+{
+	public WebDriver driver;
+	int rdmnumber = (int) (Math.random() * 1000);
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+
+	@FindBy(xpath = "//li[@tooltip='Quotes']")
+	private WebElement quotestab;
+
+	@FindBy(xpath = "(//button[contains(text(),'View')])[1]")
+	private WebElement viewbutton;
+
+	@FindBy(xpath = "//button[contains(text(),'Add default')]")
+	private WebElement adddefaultbutton;
+
+	@FindBy(xpath = "//input[@class='form-control']")
+	private WebElement glassdd;
+
+	@FindBy(xpath = "(//a[@class='dropdown-item'])[1]")
+	private WebElement firstglass;
+
+	@FindBy(xpath = "//div[@class='form-control tag-group']")
+	private WebElement laminatesdd;
+
+	@FindBy(xpath = "(//div[@class='dropdown-item'])[1]")
+	private WebElement firstcolor;
+
+	@FindBy(xpath = "//button[.='Save']")
+	private WebElement savedefault;
+
+	@FindBy(xpath = "(//button[contains(text(),'Add opening')])[1]")
+	private WebElement addopeningtab;
+
+	@FindBy(xpath = "//input[@formcontrolname='designCode']")
+	private WebElement designreftextfield;
+
+	@FindBy(xpath = "//input[@formcontrolname='quantity']")
+	private WebElement quantity;
+
+	@FindBy(xpath = "//button[.='Apply']")
+	private WebElement applybutton;
+
+	@FindBy(xpath = "//a[@tooltip='Design']")
+	private WebElement designbutton;
+
+	@FindBy(xpath = "(//div[@ngbtooltip='Sliding 2 Panel'])[1]")
+	private WebElement sliding2panel;
+
+	@FindBy(xpath = "//a[@ngbtooltip='Design']/../../../../..")
+	private WebElement destarea;
+
+	@FindBy(xpath = "//a[.='Catalog']")
+	private WebElement catalog;
+
+	@FindBy(xpath = "(//button[contains(text(),'Select design')])[1]")
+	private WebElement selectdesign;
+	
+	@FindBy(xpath = "(//button[contains(text(),'Select design')])[2]")
+	private WebElement selectdesign2;
+	
+	@FindBy(xpath = "(//button[contains(text(),'Select design')])[3]")
+	private WebElement selectdesign3;
+	
+	@FindBy(xpath = "(//button[contains(text(),'Select design')])[4]")
+	private WebElement selectdesign4;
+	
+	@FindBy(xpath = "(//button[contains(text(),'Select design')])[5]")
+	private WebElement selectdesign5;
+
+	@FindBy(xpath = "//button[@tooltip='Save']")
+	private WebElement savebutton;
+
+	@FindBy(xpath = "(//a[@role='tab'])[1]")
+	private WebElement projecttab;
+
+	@FindBy(xpath = "(//li[@class='nav-item'])[4]")
+	private WebElement reports;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[1]")
+	private WebElement elevationviewreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[1]")
+	private WebElement elevationreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[2]")
+	private WebElement basicdimensionviewreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[2]")
+	private WebElement basicdimensionreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[3]")
+	private WebElement projectcostsummary;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[3]")
+	private WebElement projectcostsummaryreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[4]")
+	private WebElement quotation;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[4]")
+	private WebElement quotationdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[5]")
+	private WebElement profilecostreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[5]")
+	private WebElement profilecostreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[6]")
+	private WebElement ricostreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[6]")
+	private WebElement ricostreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[7]")
+	private WebElement asscostreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[7]")
+	private WebElement asscostreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[8]")
+	private WebElement glasscostreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[8]")
+	private WebElement glasscostreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[9]")
+	private WebElement typologicalreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[9]")
+	private WebElement typologicalreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[10]")
+	private WebElement profileboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[11]")
+	private WebElement profileboqdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[11]")
+	private WebElement reinforcementboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[12]")
+	private WebElement reinforcementboqdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[12]")
+	private WebElement accessoriesboqreport;
+	
+	@FindBy(xpath="//svg[@class='more-options show']")
+	private WebElement accessoriesactionbutton;
+	
+	@FindBy(xpath="(//a[.='PDF'])[12]")
+	private WebElement accessorypdfdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[13]")
+	private WebElement accessoriesboqdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[13]")
+	private WebElement glassboqreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[14]")
+	private WebElement glassreportboqdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[14]")
+	private WebElement cuttingschedulereport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[15]")
+	private WebElement cuttingschedulereportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[15]")
+	private WebElement designassemblyreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[16]")
+	private WebElement designassemblyreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[16]")
+	private WebElement reinforcementcuttingreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[17]")
+	private WebElement reinforcementcuttinreportdownload;
+
+	@FindBy(xpath = "(//span[@tooltip='View report'])[17]")
+	private WebElement installationreport;
+
+	@FindBy(xpath = "(//span[@tooltip='Download'])[18]")
+	private WebElement installationreportdownload;
+
+	@FindBy(xpath = "(//li[@class='nav-item'])[2]")
+	private WebElement designpagebutton;
+
+	@FindBy(xpath = "//div[@tooltip='Glass']")
+	private WebElement massglasschange;
+
+	@FindBy(xpath = "(//input[@type='checkbox'])[1]")
+	private WebElement glasscheckbox;
+
+	@FindBy(xpath = "//app-eva-dropdown[@labelname='rmItemName']")
+	private WebElement changeglassdd;
+
+	@FindBy(xpath = "(//a[@class='dropdown-item ng-star-inserted'])[2]")
+	private WebElement glassname;
+
+	@FindBy(xpath = "//div[@tooltip='Color']")
+	private WebElement masscolorchange;
+
+	@FindBy(xpath = "//div[@class='form-check form-check-checkbox me-1']")
+	private WebElement checkboxdesign;
+
+	@FindBy(xpath = "(//input[@name='laminate'])[10]")
+	private WebElement goldenoak;
+
+	@FindBy(xpath = "//button[.='Save']")
+	private WebElement savechanges;
+
+	@FindBy(xpath = "//button[@data-dismiss='modal']")
+	private WebElement closechanges;
+
+	@FindBy(xpath = "//div[@tooltip='Refresh designs']")
+	private WebElement refreshdesigns;
+
+	@FindBy(xpath = "//button[.='Yes']")
+	private WebElement firstyesbutton;
+
+	@FindBy(xpath = "//button[.='No']")
+	private WebElement nobutton;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[1]")
+	private WebElement designactionbutton;
+
+	@FindBy(xpath = "(//a[.='Duplicate'])[1]")
+	private WebElement duplicatebutton;
+
+	@FindBy(xpath = "//input[@formcontrolname='finishedGoodCode']")
+	private WebElement designcodetextfield;
+
+	@FindBy(xpath = "(//a[.='Multiple copy'])[1]")
+	private WebElement multiplecopy;
+
+	@FindBy(xpath = "//input[@formcontrolname='designCode']")
+	private WebElement designcode1textfield;
+
+	@FindBy(xpath = "//input[@formcontrolname='width']")
+	private WebElement widthtextfield;
+
+	@FindBy(xpath = "//input[@formcontrolname='height']")
+	private WebElement heighttextfield;
+
+	@FindBy(xpath = "//input[@formcontrolname='qty']")
+	private WebElement qtytextfield;
+
+	@FindBy(xpath = "(//a[.='Save in library'])[1]")
+	private WebElement saveinlibrary;
+
+	@FindBy(xpath = "//input[@formcontrolname='finishedGoodCode']")
+	private WebElement designcde2textfield;
+
+	@FindBy(xpath = "//button[@class='close pull-right']")
+	private WebElement closebutton;
+
+	@FindBy(xpath = "(//a[.='Delete'])[1]")
+	private WebElement deleteoption;
+
+	@FindBy(xpath = "//button[.='Delete']")
+	private WebElement deleteconfirmation;
+
+	@FindBy(xpath = "//button[@class='close']")
+	private WebElement deleteclosebutton;
+
+	@FindBy(xpath = "//span[@tooltip='List view']")
+	private WebElement listviewbutton;
+
+	@FindBy(xpath = "//span[@tooltip='Sort']")
+	private WebElement designsortbutton;
+
+	@FindBy(xpath = "//a[.='Finished good name: A to Z']")
+	private WebElement fgatoz;
+
+	@FindBy(xpath = "//a[.='Finished good name: Z to A']")
+	private WebElement fgztoa;
+
+	@FindBy(xpath = "//a[.='Quantity: Low to High']")
+	private WebElement quantitylowtohigh;
+
+	@FindBy(xpath = "//a[.='Quantity: High to Low']")
+	private WebElement quantityhightolow;
+
+	@FindBy(xpath = "//input[@placeholder='Search...']")
+	private WebElement searchbartextfield;
+
+	@FindBy(xpath = "(//li[@class='nav-item'])[6]")
+	private WebElement allclassification;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[1]")
+	private WebElement actionbutton;
+
+	@FindBy(xpath = "(//a[.='Add task'])[1]")
+	private WebElement addtaskbutton;
+
+	@FindBy(xpath = "//input[@formcontrolname='taskLogTitle']")
+	private WebElement tasktitle;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='delegatedTo']")
+	private WebElement delegatetodd;
+
+	@FindBy(xpath = "//input[@placeholder='Search...']")
+	private WebElement searchbardelegateto;
+
+	@FindBy(xpath = "//a[contains(text(),'Amaresh Dash')]")
+	private WebElement amareshdash;
+
+	@FindBy(xpath = "//app-eva-dropdown[@formcontrolname='taskLogMedium']")
+	private WebElement taskmediumdd;
+
+	@FindBy(xpath = "//a[contains(text(),'Whatsapp')]")
+	private WebElement whatsapp;
+
+	@FindBy(xpath = "//input[@formcontrolname='scheduledDateTime']")
+	private WebElement scheduledate;
+
+	@FindBy(xpath = "//span[.='22']")
+	private WebElement novdate;
+
+	@FindBy(xpath = "//span[.='Set']")
+	private WebElement setbutton;
+
+	@FindBy(xpath = "//button[.='Create']")
+	private WebElement taskcreatebutton;
+
+	@FindBy(xpath = "(//a[.='Add log'])[1]")
+	private WebElement addlog;
+
+	@FindBy(xpath = "//input[@formcontrolname='taskLogTitle']")
+	private WebElement logtitle;
+
+	@FindBy(xpath = "(//input[@data-bs-toggle='dropdown'])[7]")
+	private WebElement logmediumdd;
+
+	@FindBy(xpath = "//a[contains(text(),' Journal')]")
+	private WebElement journal;
+
+	@FindBy(xpath = "//textarea[@formcontrolname='taskLogDescription']")
+	private WebElement logdescription;
+
+	@FindBy(xpath = "(//a[contains(text(),'Add revision')])[1]")
+	private WebElement addrevisionbutton;
+
+	@FindBy(xpath = "//input[@formcontrolname='title']")
+	private WebElement revisiontitletextfiled;
+
+	@FindBy(xpath = "//textarea[@formcontrolname='note']")
+	private WebElement notetextfield;
+
+	@FindBy(xpath = "//input[@value='Add']")
+	private WebElement revisionaddbutton;
+
+	@FindBy(xpath = "(//a[contains(text(),'Send quote to WhatsApp')])[1]")
+	private WebElement sendquoteonwhatssapp;
+
+	@FindBy(xpath = "//input[@formcontrolname='clientNumber']")
+	private WebElement clientnumbertextfield;
+
+	@FindBy(xpath = "//button[.='Send']")
+	private WebElement sendbutton;
+
+	@FindBy(xpath = "//a[.='Date created: Old to New']")
+	private WebElement dateoldtonew;
+
+	@FindBy(xpath = "//a[.='Date created: New to Old']")
+	private WebElement datenewtoold;
+
+	@FindBy(xpath = "//a[.='Opportunity name: New to Old']")
+	private WebElement oppnamenewtoold;
+
+	@FindBy(xpath = "//a[.='Opportunity name: Old to New']")
+	private WebElement oppnameoldtonew;
+
+	@FindBy(xpath = "//a[.='Revision: Low to High']")
+	private WebElement revlowtohigh;
+
+	@FindBy(xpath = "//a[.='Revision: High to Low']")
+	private WebElement revhightolow;
+
+	@FindBy(xpath = "//li[@class='nav-item dropdown user']")
+	private WebElement logoutdd;
+
+	@FindBy(id = "theme-dark")
+	private WebElement darkthemeradiobutton;
+
+	@FindBy(xpath = "//span[.='Mine']")
+	private WebElement mine;
+
+	@FindBy(xpath = "(//a[@class='page-link'])[13]")
+	private WebElement nextpage;
+
+	@FindBy(xpath = "(//a[contains(text(),'Mark as won')])[1]")
+	private WebElement markaswonwebelement;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[7]")
+	private WebElement markaswonstagedd;
+
+	@FindBy(xpath = "(//a[contains(text(),'Advance Received')])[2]")
+	private WebElement advrecvd;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[8]")
+	private WebElement accountdd;
+
+	@FindBy(xpath = "(//a[contains(text(),'ABC Construction Pvt Ltd')])[2]")
+	private WebElement akashhomes;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[9]")
+	private WebElement markaswoncompetitordd;
+
+	@FindBy(xpath = "(//a[contains(text(),'Automation Test')])[3]")
+	private WebElement ssmtest10ed;
+
+	@FindBy(xpath = "//input[@formcontrolname='expectedDeliveryDate']")
+	private WebElement expdeliverydate;
+
+	@FindBy(xpath = "(//span[.='26'])[2]")
+	private WebElement dectwentysix;
+
+	@FindBy(xpath = "(//input[@type='submit'])[2]")
+	private WebElement markaswonsavebutton;
+
+	@FindBy(xpath = "(//a[.=' Mark as lost '])[1]")
+	private WebElement markaslostwebelement;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[7]")
+	private WebElement reasondd;
+
+	@FindBy(xpath = "//a[contains(text(),'Brand')]")
+	private WebElement reasonbrand;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[8]")
+	private WebElement markaslostcompetitordd;
+
+	@FindBy(xpath = "//a[contains(text(),'Competitor 1')]")
+	private WebElement competitor1;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[9]")
+	private WebElement markasloststagedd;
+
+	@FindBy(xpath = "(//a[contains(text(),'Lost')])[4]")
+	private WebElement ssmtested;
+
+	@FindBy(xpath = "(//input[@type='submit'])[2]")
+	private WebElement markaslostsavebutton;
+
+	@FindBy(xpath = "//span[@tooltip='Filter']")
+	private WebElement filterbutton;
+
+	@FindBy(xpath = "(//input[@class='form-control'])[5]")
+	private WebElement locationdd;
+
+	@FindBy(xpath = "//a[contains(text(),'Ahamadnagar')]")
+	private WebElement ahamadnagarcity;
+
+	@FindBy(xpath = "//input[@value='Apply']")
+	private WebElement filterapplybutton;
+
+	@FindBy(xpath = "//a[.='Design reference: A to Z']")
+	private WebElement dratoz;
+
+	@FindBy(xpath = "//a[.='Value per quantity: High to Low']")
+	private WebElement vpqlowtohigh;
+
+	@FindBy(xpath = "//div[@role='alertdialog']")
+	private WebElement alertmessage;
+
+	@FindBy(xpath = "//button[@class='close pull-right']")
+	private WebElement closeadddefault;
+
+	@FindBy(xpath = "(//li[@class='nav-item'])[3]")
+	private WebElement pricingtab;
+
+	@FindBy(xpath = "//div[@tooltip='Profile rate']")
+	private WebElement profiletab;
+
+	@FindBy(xpath = "(//input[@type='text'])[3]")
+	private WebElement pricechange;
+
+	@FindBy(xpath = "//button[contains(text(),'Save')]")
+	private WebElement savepricing;
+
+	@FindBy(xpath = "//div[@tooltip='Reinforcement rate']")
+	private WebElement reinforcementpricing;
+
+	@FindBy(xpath = "//div[@ngbtooltip='Hardware rate']")
+	private WebElement hardwarepricing;
+
+	@FindBy(xpath = "//div[@ngbtooltip='Glass rate']")
+	private WebElement glasspricing;
+
+	@FindBy(xpath = "//button[.='Proceed & download']")
+	private WebElement proceeddownload;
+	
+	@FindBy(xpath="(//li[@class='nav-item'])[4]")
+	private WebElement wonclassification;
+	
+	@FindBy(xpath="(//div[@class='hovr-area'])[1]")
+	private WebElement wonclassificationactionbutton;
+	
+	@FindBy(xpath="(//li[@class='nav-item'])[5]")
+	private WebElement lostclassification;
+	
+	@FindBy(xpath="(//a[contains(text(),'Request survey')])[1]")
+	private WebElement requestforsurveybutton;
+	
+	@FindBy(xpath="(//div[@class='form-style-1 pt-3'])[1]")
+	private WebElement surveyordd;
+	
+	@FindBy(xpath="(//input[@class='form-check-input'])[3]")
+	private WebElement visibletosurveyorcheckbox;
+	
+	@FindBy(xpath="//span[@class='back']")
+	private WebElement backbutton;
+	
+	public QuotePage(WebDriver driver) 
+	{
+		PageFactory.initElements(driver, this);
+	}
+
+	public void createdesign() throws InterruptedException
+	{
+
+		quotestab.click();
+		Thread.sleep(1000);
+		actionbutton.click();
+		Thread.sleep(1000);
+		viewbutton.click();
+		Thread.sleep(1000);
+		adddefaultbutton.click();
+		Thread.sleep(2000);
+		closeadddefault.click();
+		Thread.sleep(1000);
+		adddefaultbutton.click();
+		Thread.sleep(1000);
+//		glassdd.click();
+//		Thread.sleep(1000);
+//		firstglass.click();
+//		Thread.sleep(1000);
+//		laminatesdd.click();
+//		firstcolor.click();
+//		Thread.sleep(2000);
+		savedefault.click();
+		Thread.sleep(1000);
+		catalog.click();
+		Thread.sleep(1000);
+		selectdesign.click();
+		Thread.sleep(1000);
+		designreftextfield.sendKeys("Stest2" + rdmnumber);
+		Thread.sleep(1000);
+		quantity.sendKeys("2");
+		Thread.sleep(2000);
+		applybutton.click();
+		Thread.sleep(2000);
+		savebutton.click();
+		Thread.sleep(3000);
+		selectdesign2.click();
+		Thread.sleep(2000);
+		designreftextfield.sendKeys("Stest3" + rdmnumber);
+		Thread.sleep(1000);
+		quantity.sendKeys("2");
+		Thread.sleep(2000);
+		applybutton.click();
+		Thread.sleep(2000);
+		savebutton.click();
+		Thread.sleep(2000);
+		selectdesign3.click();
+		Thread.sleep(2000);
+		designreftextfield.sendKeys("Stest4" + rdmnumber);
+		Thread.sleep(1000);
+		quantity.sendKeys("2");
+		Thread.sleep(2000);
+		applybutton.click();
+		Thread.sleep(2000);
+		savebutton.click();
+		Thread.sleep(2000);
+		selectdesign4.click();
+		Thread.sleep(2000);
+		designreftextfield.sendKeys("Stest5" + rdmnumber);
+		Thread.sleep(1000);
+		quantity.sendKeys("2");
+		Thread.sleep(2000);
+		applybutton.click();
+		Thread.sleep(2000);
+		savebutton.click();
+		Thread.sleep(2000);
+		selectdesign5.click();
+		Thread.sleep(2000);
+		designreftextfield.sendKeys("Stest6" + rdmnumber);
+		Thread.sleep(1000);
+		quantity.sendKeys("2");
+		Thread.sleep(2000);
+		applybutton.click();
+		Thread.sleep(2000);
+		savebutton.click();
+		Thread.sleep(2000);
+		projecttab.click();
+		Thread.sleep(1000);
+
+	}
+
+	public void masschange() throws InterruptedException 
+	{
+		masscolorchange.click();
+		
+		checkboxdesign.click();
+		
+		goldenoak.click();
+		
+		savechanges.click();
+	
+		closechanges.click();
+	
+		refreshdesigns.click();
+		
+		firstyesbutton.click();
+		
+		nobutton.click();
+	
+		firstyesbutton.click();
+	
+
+	}
+
+	public void massglasschange() throws InterruptedException
+	{
+		quotestab.click();
+	
+		viewbutton.click();
+		massglasschange.click();
+		
+		glasscheckbox.click();
+		changeglassdd.click();
+
+		glassname.click();
+		savechanges.click();
+	}
+
+	@FindBy(xpath="(//a[contains(text(),'History')])[1]")
+	private WebElement historybutton;
+	
+	@FindBy(xpath="//span[@class='close']")
+	private WebElement closehistory;
+	
+	public void otheractions() throws InterruptedException 
+	{
+		
+//		quotestab.click();
+//		Thread.sleep(2000);
+//		viewbutton.click();
+//		Thread.sleep(2000);
+		designactionbutton.click();
+		
+		duplicatebutton.click();
+
+		designcodetextfield.sendKeys("W1"+ rdmnumber);
+		Thread.sleep(2000);
+		savechanges.click();
+	
+  		designactionbutton.click();
+		
+		multiplecopy.click();
+	
+		designcode1textfield.sendKeys("W2" + rdmnumber);
+		
+		widthtextfield.sendKeys("1855");
+	
+		heighttextfield.sendKeys("1955");
+		
+		qtytextfield.sendKeys("2");
+		Thread.sleep(2000);
+		savechanges.click();
+		Thread.sleep(2000);
+		closechanges.click();
+		
+		designactionbutton.click();
+	
+		saveinlibrary.click();
+		
+		designcde2textfield.sendKeys("W3" + rdmnumber);
+		
+		savechanges.click();
+		Thread.sleep(2000);
+		closebutton.click();
+		designactionbutton.click();
+		
+		historybutton.click();
+		
+		closehistory.click();
+	
+		designactionbutton.click();
+		
+		deleteoption.click();
+		Thread.sleep(2000);
+		deleteconfirmation.click();
+		
+		//backbutton.click();
+	}
+
+	public void reports() throws InterruptedException 
+	{
+
+		pricingtab.click();
+		
+		profiletab.click();
+		
+		pricechange.clear();
+		
+		pricechange.sendKeys("2" + rdmnumber);
+		
+		savepricing.click();
+		Thread.sleep(1000);
+		reinforcementpricing.click();
+		
+		pricechange.clear();
+		
+		pricechange.sendKeys("2"+ rdmnumber);
+		
+		savepricing.click();
+		Thread.sleep(1000);
+		hardwarepricing.click();
+		pricechange.clear();
+		
+		pricechange.sendKeys("2" + rdmnumber);
+		savepricing.click();
+		Thread.sleep(1000);
+		glasspricing.click();
+		pricechange.clear();
+	
+		pricechange.sendKeys("2" + rdmnumber);
+		savepricing.click();
+	
+//		reports.click();
+//		elevationviewreport.click();
+//		
+//		basicdimensionviewreport.click();
+//		
+//		projectcostsummary.click();
+//		
+//		quotation.click();
+//		
+//		proceeddownload.click();
+//		
+//		profilecostreport.click();
+//		
+//		ricostreport.click();
+//	
+//		asscostreport.click();
+//		
+//		glasscostreport.click();
+//		
+//		profileboqreport.click();
+//		
+//		reinforcementboqreport.click();
+//	
+//		accessoriesboqreport.click();
+//		
+//		glassboqreport.click();
+//		
+//		cuttingschedulereport.click();
+//		
+//		designassemblyreport.click();
+//		
+//		reinforcementcuttingreport.click();
+//		
+//		installationreport.click();
+		
+		//backbutton.click();
+	}
+
+	public void pricingandreportsdownload() throws InterruptedException 
+	{
+//		quotestab.click();
+//		
+//		viewbutton.click();
+//		
+//		catalog.click();
+//		
+//		selectdesign.click();
+//		
+//		designreftextfield.sendKeys("W4" +rdmnumber); 
+//		
+//		quantity.sendKeys("2"); 
+//		
+//		applybutton.click(); 
+//		
+//		savebutton.click(); 
+//		
+//		projecttab.click();
+		Thread.sleep(2000);
+		pricingtab.click();
+		
+		profiletab.click();
+		
+		pricechange.clear();
+		
+		pricechange.sendKeys("2" + rdmnumber);
+		
+		savepricing.click();
+		
+		reinforcementpricing.click();
+	
+		pricechange.clear();
+		
+		pricechange.sendKeys("2" + rdmnumber);
+		
+		savepricing.click();
+		
+		hardwarepricing.click();
+		
+		pricechange.clear();
+	
+		pricechange.sendKeys("2" + rdmnumber);
+		
+		savepricing.click();
+		
+		glasspricing.click();
+		
+		pricechange.clear();
+		
+		pricechange.sendKeys("2" + rdmnumber);
+		
+		savepricing.click();
+		
+		reports.click();
+		
+		elevationreportdownload.click();
+		
+		basicdimensionreportdownload.click();
+		
+		projectcostsummaryreportdownload.click();
+		
+		quotationdownload.click();
+
+		proceeddownload.click();
+	
+		profilecostreportdownload.click();
+		
+		ricostreportdownload.click();
+		
+		asscostreportdownload.click();
+		
+		glasscostreportdownload.click();
+		
+		profileboqdownload.click(); 
+		
+		reinforcementboqdownload.click(); 
+		
+		glassreportboqdownload.click();
+		
+		cuttingschedulereportdownload.click();
+		
+		reinforcementcuttinreportdownload.click();
+		
+		designassemblyreportdownload.click();
+		
+		installationreportdownload.click();
+	}
+	
+	
+	@FindBy(xpath="//div[@ngbtooltip='Project cost heads']")
+	private WebElement projectcostheadstab;
+	
+	@FindBy(xpath="//button[contains(text(),'Add cost overhead')]")
+	private WebElement addcostoverheadtab;
+	
+	@FindBy(xpath="//input[@formcontrolname='priceElementName']")
+	private WebElement costheadnametextfield;
+	
+	@FindBy(xpath="//app-eva-dropdown[@formcontrolname='calculationTypesId']")
+	private WebElement calculationtypedropdown;
+	
+	@FindBy(xpath="//a[contains(text(),'AreaSqftCavity')]")
+	private WebElement areasqft;
+	
+	@FindBy(xpath="(//input[@formcontrolname='priceElementRate'])[10]")
+	private WebElement defaultratetextfield;
+	
+	@FindBy(xpath="//input[@formcontrolname='formula']")
+	private WebElement calculationformulatextfield;
+	
+	@FindBy(xpath="(//textarea[@formcontrolname='priceElementNote'])[7]")
+	private WebElement costoverheadnotetextfield;		//savedefault.click
+	
+	@FindBy(xpath="//li[@class='li-btn ng-star-inserted']")
+	private WebElement pricestructuredropdown;
+	
+	@FindBy(xpath="//a[contains(text(),'Default Price Structure DUPLICATE')]")
+	private WebElement selectpricestruture;	//firstyesbutton
+		
+	public void addcostoverhead() throws InterruptedException
+	{
+//		quotestab.click();
+//		Thread.sleep(1000);
+//		actionbutton.click();
+//		Thread.sleep(1000);
+//		viewbutton.click();
+//		Thread.sleep(2000);
+//		pricingtab.click();
+		projectcostheadstab.click();
+		addcostoverheadtab.click();
+		Thread.sleep(2000);
+		costheadnametextfield.sendKeys("SSM Automation"+ rdmnumber+formattedDate);
+		closebutton.click();
+		Thread.sleep(1000);
+		addcostoverheadtab.click();
+		Thread.sleep(2000);
+		costheadnametextfield.sendKeys("SSM Automation"+ rdmnumber+formattedDate);
+		Thread.sleep(1000);
+		calculationtypedropdown.click();
+		areasqft.click();
+		Thread.sleep(2000);
+		defaultratetextfield.sendKeys("@");
+		Thread.sleep(1000);
+		defaultratetextfield.sendKeys(Keys.ENTER);
+		Thread.sleep(1000);
+		//costoverheadnotetextfield.sendKeys("Test"+rdmnumber);
+		savedefault.click();
+		Thread.sleep(2000);
+		pricestructuredropdown.click();
+		Thread.sleep(1000);
+		selectpricestruture.click();
+		Thread.sleep(1000);
+		firstyesbutton.click();
+		Thread.sleep(1000);
+		backbutton.click();
+	}
+	
+	public void quoteactionaddtask() throws InterruptedException 
+	{
+		
+//		quotestab.click();
+//		Thread.sleep(5000);
+		allclassification.click();
+		
+		actionbutton.click();
+	
+		addtaskbutton.click();
+		
+		tasktitle.sendKeys("SSM Automation Test" + rdmnumber);
+		
+		delegatetodd.click();
+		
+		amareshdash.click();
+		
+		taskmediumdd.click();
+		
+		whatsapp.click();
+		
+		scheduledate.click();
+	
+		novdate.click();
+		Thread.sleep(2000);
+		setbutton.click();
+		Thread.sleep(1000);
+		taskcreatebutton.click();
+
+	}
+
+	public void quoteactionaddlog() throws InterruptedException 
+	{
+		
+		Thread.sleep(3000);
+		actionbutton.click();
+		
+		addlog.click();
+		
+		logtitle.sendKeys("SSM Automation Test" + rdmnumber);
+	
+		logmediumdd.click();
+		
+		journal.click();
+		
+		logdescription.sendKeys("Test5" + rdmnumber);
+		Thread.sleep(1000);
+		taskcreatebutton.click();
+		
+	}
+	@FindBy(xpath="//button[contains(text(),'Create first quote')]")
+	private WebElement createfirstquotebutton;
+	
+	@FindBy(xpath="//app-eva-dropdown-refresh[@formcontrolname='opportunityMasterId']")
+	private WebElement opportunitydd;	
+	
+	@FindBy(xpath="//a[contains(text(),'SSM Automation601 Apr 26 2023')]")
+	private WebElement oppname;
+	
+	@FindBy(xpath="//input[@value='Add']")
+	private WebElement addbutton;
+	
+	public void addrevision() throws InterruptedException
+	
+	{
+//		quotestab.click();
+//		
+//		createfirstquotebutton.click();
+//		
+//		opportunitydd.click();
+//		
+//		oppname.click();
+//		Thread.sleep(1000);
+//		addbutton.click();
+		Thread.sleep(2000);
+		actionbutton.click();
+		
+		addrevisionbutton.click();
+		
+		revisiontitletextfiled.sendKeys("SSM Automation" + rdmnumber);
+		
+		notetextfield.sendKeys("Test6" + rdmnumber);
+		Thread.sleep(1000);
+		revisionaddbutton.click();
+		
+		designsortbutton.click();
+		
+		dateoldtonew.click();
+	
+		designsortbutton.click();
+		
+		revlowtohigh.click();
+		
+		nextpage.click();
+	}
+
+	public void markaswon() throws InterruptedException 
+	{
+		//lostclassification.click();
+		
+		actionbutton.click();
+		
+		markaswonwebelement.click();
+		Thread.sleep(3000);
+		closebutton.click();
+		Thread.sleep(2000);
+		actionbutton.click();
+		Thread.sleep(2000);
+		markaswonwebelement.click();
+		
+		markaswonstagedd.click();
+		
+		advrecvd.click();
+		
+		accountdd.click();
+		
+		akashhomes.click();
+		
+		markaswoncompetitordd.click();
+		
+		ssmtest10ed.click();
+	
+		expdeliverydate.click();
+		
+		dectwentysix.click();
+		Thread.sleep(2000);
+		dectwentysix.click();
+		Thread.sleep(3000);
+		markaswonsavebutton.click();
+	
+	}
+
+	public void markaslost() throws InterruptedException
+	
+	{
+		
+		wonclassification.click();
+	
+		actionbutton.click();
+		
+		markaslostwebelement.click();
+		
+		closebutton.click();
+	
+		actionbutton.click();
+
+		markaslostwebelement.click();
+	
+		reasondd.click();
+		
+		reasonbrand.click();
+		
+		markaslostcompetitordd.click();
+		
+		competitor1.click();
+		
+		markasloststagedd.click();
+		
+		ssmtested.click();
+		
+		markaslostsavebutton.click();
+	}
+
+	public void sendquotwhatsapp() throws InterruptedException 
+	{
+		
+		actionbutton.click();
+		
+		sendquoteonwhatssapp.click();
+	
+		clientnumbertextfield.clear();
+	
+		clientnumbertextfield.sendKeys("8280130025");
+		
+		sendbutton.click();
+//		Thread.sleep(1000);
+//		String actualmsg = alertmessage.getText();
+//		String expectedmsg = "WhatsApp send successfully.";
+//		Assert.assertEquals(actualmsg, expectedmsg);
+//		System.out.println(actualmsg);
+//		Thread.sleep(10000);
+//		actionbutton.click();
+//		Thread.sleep(3000);
+//		sendquoteonwhatssapp.click();
+//		Thread.sleep(3000);
+//		clientnumbertextfield.clear();
+//		Thread.sleep(3000);
+//		clientnumbertextfield.sendKeys("7751898970");
+//		Thread.sleep(3000);
+//		sendbutton.click();
+		
+	}
+
+	public void filter() throws InterruptedException 
+	{
+		quotestab.click();
+		filterbutton.click();
+		Thread.sleep(5000);
+		locationdd.click();
+		ahamadnagarcity.click();
+		filterapplybutton.click();
+	}
+
+	public void designsortbutton() throws InterruptedException 
+	{
+		quotestab.click();
+		
+		viewbutton.click();
+		
+		designsortbutton.click();
+		
+		fgatoz.click();
+		designsortbutton.click();
+		fgztoa.click();
+		
+		designsortbutton.click();
+		quantityhightolow.click();
+	
+		designsortbutton.click();
+		
+		quantitylowtohigh.click();
+		
+		designsortbutton.click();
+		dratoz.click();
+		
+		designsortbutton.click();
+		vpqlowtohigh.click();
+		searchbartextfield.sendKeys("1");
+		searchbartextfield.sendKeys(Keys.ENTER);
+	}
+
+	public void alertconfirmation() throws InterruptedException
+
+	{
+		Thread.sleep(2000);
+		String actualmsg = alertmessage.getText();
+		String expectedmsg = "Data saved successfully";
+		Assert.assertEquals(actualmsg, expectedmsg);
+		System.out.println(actualmsg);
+	}
+	
+}
+

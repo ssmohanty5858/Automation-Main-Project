@@ -1,0 +1,112 @@
+package listeners;
+import org.testng.*;
+import org.testng.xml.XmlSuite;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.stream.Stream;
+
+public class AttachHtmlFromLogsListener implements ITestListener, ISuiteListener {
+
+	  private Path testOutputRoot; // usually .../test-output
+	  private Path logsRoot;       // your existing folder that already has the HTML
+
+	  @Override
+	  public void onStart(ISuite suite) {
+	    // Allow HTML anchors in Reporter.log
+	    Reporter.setEscapeHtml(false);
+
+	    // Where the emailable report lives:
+	    testOutputRoot = Paths.get(System.getProperty("testng.report.output", "test-output"))
+	                          .toAbsolutePath();
+
+	    // Where YOUR recorder already writes HTML (unchanged)
+	    // You can override with -Dlogs.dir=/absolute/path/to/logs if needed.
+	    logsRoot = Paths.get(System.getProperty("logs.dir", "logs")).toAbsolutePath();
+	  }
+
+	  @Override public void onTestSuccess(ITestResult r) { attach(r); }
+	  @Override public void onTestFailure(ITestResult r) { attach(r); }
+	  @Override public void onTestSkipped(ITestResult r) { attach(r); }
+
+	  // Unused callbacks
+	  @Override public void onFinish(ISuite suite) {}
+	  @Override public void onTestStart(ITestResult r) {}
+	  @Override public void onTestFailedButWithinSuccessPercentage(ITestResult r) {}
+	  @Override public void onTestFailedWithTimeout(ITestResult r) {}
+	  @Override public void onStart(ITestContext context) {}
+	  @Override public void onFinish(ITestContext context) {}
+
+	  private void attach(ITestResult result) {
+	    try {
+	      String cls = result.getTestClass().getRealClass().getSimpleName();
+	      String mth = result.getMethod().getMethodName();
+	      long start = result.getStartMillis();
+	      long end   = result.getEndMillis();
+
+	      Path html = findBestHtml(logsRoot, cls, mth, start, end);
+	      if (html == null || !Files.exists(html)) {
+	        // Helpful trace while wiring things up
+	        Reporter.log("[LOG] No HTML artifact found in " + logsRoot + " for " + cls + "#" + mth, true);
+	        return;
+	      }
+
+	      String href = makeHref(html);
+	      String label = "Open API/UI/Console capture";
+	      Reporter.log("<a target='_blank' rel='noopener' href='" + href + "'>" + label + "</a>", true);
+
+	    } catch (Exception e) {
+	      Reporter.log("[LOG] Could not attach HTML artifact: " + e.getMessage(), true);
+	    }
+	  }
+
+	  // Prefer a relative href from test-output → logs/ (works in CI zips and locally).
+	  // If they’re on different roots/drives, fall back to file:// URL.
+	  private String makeHref(Path file) {
+	    Path abs = file.toAbsolutePath();
+	    try {
+	      Path rel = testOutputRoot.relativize(abs);
+	      return rel.toString().replace(File.separatorChar, '/');
+	    } catch (IllegalArgumentException differentRoots) {
+	      return abs.toUri().toString(); // e.g., file:///C:/path/to/logs/....
+	    }
+	  }
+
+	  // Heuristic: choose the most relevant .html in logs/ based on method/class name and time window.
+	  private Path findBestHtml(Path root, String cls, String mth, long startMs, long endMs) throws IOException {
+	    long from = startMs - 60_000; // 1 min padding
+	    long to   = endMs   + 60_000;
+
+	    final String clsL = cls.toLowerCase(Locale.ROOT);
+	    final String mthL = mth.toLowerCase(Locale.ROOT);
+
+	    Path best = null;
+	    long bestScore = Long.MIN_VALUE;
+
+	    try (Stream<Path> s = Files.walk(root, 6)) {
+	      for (Path p : (Iterable<Path>) s.filter(p -> p.toString().toLowerCase(Locale.ROOT).endsWith(".html"))::iterator) {
+	        try {
+	          BasicFileAttributes a = Files.readAttributes(p, BasicFileAttributes.class);
+	          long lm = a.lastModifiedTime().toMillis();
+
+	          String name = p.getFileName().toString().toLowerCase(Locale.ROOT);
+	          int nameScore = 0;
+	          if (name.contains(mthL)) nameScore += 1000;
+	          if (name.contains(clsL)) nameScore += 500;
+
+	          int timeScore = (lm >= from && lm <= to) ? 2000 : -200;
+
+	          long score = nameScore + timeScore + (lm / 1000); // prefer newer overall
+	          if (score > bestScore) { bestScore = score; best = p; }
+
+	        } catch (Exception ignore) {}
+	      }
+	    }
+	    return best;
+	  }
+	}

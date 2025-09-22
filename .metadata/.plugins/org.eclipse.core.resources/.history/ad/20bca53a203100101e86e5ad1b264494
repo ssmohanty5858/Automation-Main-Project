@@ -1,0 +1,8 @@
+package AutoConstant;
+
+public interface constantInput 
+{
+	String URl= "https://uk.evaerp.cloud/";
+	String userName="sapphireadmin@gmail.com";
+	String Password= "Suman123*";
+}

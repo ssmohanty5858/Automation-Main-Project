@@ -1,0 +1,17 @@
+// Test/Login.java
+package Test;
+
+import POM.LoginSapphire;
+import org.testng.annotations.Test;
+
+public class Login extends baseTest {
+
+  @Test
+  public void Login() throws Exception 
+  {
+	
+	driver.get(baseUrl); // baseUrl comes from TestNG param
+    new LoginSapphire(driver).login(username, password); // per-test creds
+    // assertions... (driver is closed by BaseTest @AfterMethod)
+  }
+}

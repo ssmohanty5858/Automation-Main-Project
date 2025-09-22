@@ -1,0 +1,133 @@
+package util;
+
+import org.testng.*;
+import org.testng.xml.XmlSuite;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class EmailableReportWithLogs implements IReporter {
+
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html><html><head><meta charset='utf-8'>")
+            .append("<title>Emailable Report (with Logs)</title>")
+            .append("<style>")
+            .append("body{font-family:Segoe UI,Arial,sans-serif;margin:16px;color:#111}")
+            .append("h1{margin:0 0 12px 0;font-size:20px}")
+            .append("h2{margin:18px 0 8px;font-size:16px}")
+            .append("table{border-collapse:collapse;width:100%;margin:8px 0}")
+            .append("th,td{border:1px solid #ddd;padding:8px;font-size:13px;vertical-align:top}")
+            .append("th{background:#f6f8fa;text-align:left}")
+            .append(".ok{background:#e8f5e9}.fail{background:#ffebee}.skip{background:#fff8e1}")
+            .append(".mono{font-family:Consolas,Menlo,monospace}")
+            .append(".log{white-space:pre-wrap;font-family:Consolas,Menlo,monospace}")
+            .append("</style></head><body>");
+
+        html.append("<h1>Automation Test Execution Report</h1>")
+            .append("<div class='mono'>Generated: ")
+            .append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()))
+            .append("</div>");
+
+        for (ISuite suite : suites) {
+            html.append("<h2>Suite: ").append(esc(suite.getName())).append("</h2>");
+
+            Map<String, ISuiteResult> results = suite.getResults();
+            for (ISuiteResult sr : results.values()) {
+                ITestContext ctx = sr.getTestContext();
+                html.append("<h3>").append(esc(ctx.getName())).append("</h3>");
+
+                // Summary
+             // Summary
+                html.append("<table><tr><th>Total</th><th>Passed</th><th>Failed</th><th>Skipped</th>")
+                    .append("<th>Start</th><th>End</th><th>Duration (ms)</th></tr>");
+
+                long dur = ctx.getEndDate().getTime() - ctx.getStartDate().getTime();
+
+                int total = ctx.getPassedTests().size() 
+                          + ctx.getFailedTests().size() 
+                          + ctx.getSkippedTests().size();
+
+                html.append("<tr><td>").append(total)
+                    .append("</td><td>").append(ctx.getPassedTests().size())
+                    .append("</td><td>").append(ctx.getFailedTests().size())
+                    .append("</td><td>").append(ctx.getSkippedTests().size())
+                    .append("</td><td>").append(fmt(ctx.getStartDate()))
+                    .append("</td><td>").append(fmt(ctx.getEndDate()))
+                    .append("</td><td>").append(dur)
+                    .append("</td></tr></table>");
+
+
+                // Details
+                renderBlock(html, "Passed",  ctx.getPassedTests(),  "ok");
+                renderBlock(html, "Failed",  ctx.getFailedTests(),  "fail");
+                renderBlock(html, "Skipped", ctx.getSkippedTests(), "skip");
+            }
+        }
+
+        html.append("</body></html>");
+
+        Path out = Paths.get(outputDirectory, "emailable-report.html"); // overwrite default
+        try {
+            Files.createDirectories(out.getParent());
+            Files.writeString(out, html.toString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void renderBlock(StringBuilder html, String title, IResultMap results, String css) {
+        if (results == null || results.size() == 0) return;
+        html.append("<h3>").append(esc(title)).append("</h3>")
+            .append("<table><tr><th>#</th><th>Class</th><th>Method</th><th>Status</th>")
+            .append("<th>Start</th><th>Duration (ms)</th><th>Logs</th><th>Error</th></tr>");
+
+        int i = 1;
+        for (ITestResult r : results.getAllResults()) {
+            String cls = r.getTestClass().getName();
+            String mtd = r.getMethod().getMethodName();
+            long dur = r.getEndMillis() - r.getStartMillis();
+
+            List<String> logs = Reporter.getOutput(r); // << Reporter logs per test
+            String logsHtml = logs == null || logs.isEmpty() ? "" : String.join("\n", logs);
+
+            Throwable t = r.getThrowable();
+            String err = t == null ? "" : esc(stackToString(t));
+
+            html.append("<tr class='").append(css).append("'>")
+                .append("<td>").append(i++).append("</td>")
+                .append("<td>").append(esc(cls)).append("</td>")
+                .append("<td>").append(esc(mtd)).append("</td>")
+                .append("<td>").append(esc(title)).append("</td>")
+                .append("<td>").append(esc(fmt(new Date(r.getStartMillis())))).append("</td>")
+                .append("<td>").append(dur).append("</td>")
+                .append("<td class='log'>").append(logsHtml).append("</td>")
+                .append("<td class='log'>").append(err).append("</td>")
+                .append("</tr>");
+        }
+        html.append("</table>");
+    }
+
+    private static int size(IInvokedMethod[] arr) { return arr == null ? 0 : arr.length; }
+    private static String fmt(Date d) { return d == null ? "" : new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(d); }
+    private static String esc(String s) {
+        if (s == null) return "";
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+    private static String stackToString(Throwable t) {
+        StringBuilder sb = new StringBuilder(t.toString()).append('\n');
+        for (StackTraceElement e : t.getStackTrace()) sb.append("\tat ").append(e).append('\n');
+        Throwable c = t.getCause();
+        while (c != null) {
+            sb.append("Caused by: ").append(c).append('\n');
+            for (StackTraceElement e : c.getStackTrace()) sb.append("\tat ").append(e).append('\n');
+            c = c.getCause();
+        }
+        return sb.toString();
+    }
+}

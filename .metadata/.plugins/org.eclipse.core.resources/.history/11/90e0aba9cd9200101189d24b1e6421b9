@@ -1,0 +1,104 @@
+package listeners;
+
+
+import org.testng.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Locale;
+import java.util.stream.Stream;
+
+public class AttachHtmlFromLogsListener implements ITestListener, ISuiteListener {
+
+  private Path testOutputRoot; // usually .../test-output
+  private Path logsRoot;       // your existing logs folder (unchanged)
+
+  @Override
+  public void onStart(ISuite suite) {
+    Reporter.setEscapeHtml(false); // render <a> as links
+    testOutputRoot = Paths.get(System.getProperty("testng.report.output", "test-output")).toAbsolutePath();
+    // If your logs folder is elsewhere, pass -Dlogs.dir=... when running
+    logsRoot = Paths.get(System.getProperty("logs.dir", "logs")).toAbsolutePath();
+  }
+
+  @Override public void onTestSuccess(ITestResult r) { attachBoth(r); }
+  @Override public void onTestFailure(ITestResult r) { attachBoth(r); }
+  @Override public void onTestSkipped(ITestResult r) { attachBoth(r); }
+
+  @Override public void onFinish(ISuite suite) {}
+  @Override public void onTestStart(ITestResult r) {}
+  @Override public void onTestFailedButWithinSuccessPercentage(ITestResult r) {}
+  @Override public void onTestFailedWithTimeout(ITestResult r) {}
+  @Override public void onStart(ITestContext context) {}
+  @Override public void onFinish(ITestContext context) {}
+
+  private void attachBoth(ITestResult result) {
+    String cls = result.getTestClass().getRealClass().getSimpleName();
+    String mth = result.getMethod().getMethodName();
+    long start = result.getStartMillis();
+    long end   = result.getEndMillis();
+
+    // 1) API/network html
+    Path network = findHtml(logsRoot, cls, mth, start, end, "network_api");
+    if (network == null) {
+      // fallback if your naming sometimes omits "_api"
+      network = findHtml(logsRoot, cls, mth, start, end, "network");
+    }
+    if (network != null) {
+      Reporter.log(anchor("Open API calls", network), true);
+    }
+
+    // 2) Console html
+    Path console = findHtml(logsRoot, cls, mth, start, end, "console");
+    if (console != null) {
+      Reporter.log(anchor("Open Console", console), true);
+    }
+  }
+
+  private String anchor(String label, Path file) {
+    String href;
+    try {
+      // Prefer relative path so it works in CI zips and locally
+      Path rel = testOutputRoot.relativize(file.toAbsolutePath());
+      href = rel.toString().replace(File.separatorChar, '/');
+    } catch (IllegalArgumentException e) {
+      // Different drive/root: fall back to file:// URL
+      href = file.toUri().toString();
+    }
+    return  href ;
+  }
+
+  /** Find the most relevant .html in logs/ matching method/class + a hint ("network_api" or "console"). */
+  private Path findHtml(Path root, String cls, String mth, long startMs, long endMs, String hint) {
+    long from = startMs - 120_000; // 2 min padding
+    long to   = endMs   + 120_000;
+
+    String clsL  = cls.toLowerCase(Locale.ROOT);
+    String mthL  = mth.toLowerCase(Locale.ROOT);
+    String hintL = hint.toLowerCase(Locale.ROOT);
+
+    Path best = null;
+    long bestScore = Long.MIN_VALUE;
+
+    try (Stream<Path> s = Files.walk(root, 5)) {
+      for (Path p : (Iterable<Path>) s.filter(p -> p.toString().toLowerCase(Locale.ROOT).endsWith(".html"))::iterator) {
+        String name = p.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (!name.contains(hintL)) continue;                // enforce the type we’re looking for
+
+        long lm = Files.getLastModifiedTime(p).toMillis();  // timing relevance
+        int score = 0;
+        if (name.contains(mthL)) score += 1000;
+        if (name.contains(clsL)) score += 500;
+        score += (lm >= from && lm <= to) ? 2000 : -200;
+        score += (int)(lm / 1000); // prefer newer if tie
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
+      }
+    } catch (IOException ignore) {}
+    return best;
+  }
+}

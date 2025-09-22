@@ -1,0 +1,200 @@
+package util;
+
+import org.testng.Reporter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+/** Tiny test logger with level filtering + TestNG Reporter + “sections”. */
+public final class Log {
+
+    public enum Level { DEBUG, INFO, PASS, ERROR }
+
+    /** Current threshold (messages below this are ignored). */
+    private static volatile Level threshold = Level.INFO; // SAFE DEFAULT
+
+    /** Optional “section” tag per thread (e.g., current test step). */
+    private static final ThreadLocal<String> SECTION = new ThreadLocal<>();
+
+    private Log() { /* no instances */ }
+
+    /* ========================= INIT / CONFIG ========================= */
+
+    /** Initialize from -DlogLevel=... (DEBUG|INFO|PASS|ERROR). */
+    public static void initFromSystemProperty() {
+        String raw = System.getProperty("logLevel", "INFO");
+        Level parsed = safeParseLevel(raw);
+        threshold = parsed;  // assign BEFORE any logging
+
+        // Now it's safe to emit the init message
+        log(Level.INFO, "INIT", "Logger initialized with level=" + threshold, null);
+    }
+
+    /** Programmatically set log level. */
+    public static void setLevel(Level lvl) {
+        if (lvl == null) lvl = Level.INFO;
+        threshold = lvl;
+        log(Level.INFO, "INIT", "Logger level set to " + threshold, null);
+    }
+
+    /** Accepts common variants; never returns null. */
+    private static Level safeParseLevel(String s) {
+        if (s == null) return Level.INFO;
+        String v = s.trim().toUpperCase(Locale.ROOT);
+        try {
+            return Level.valueOf(v); // our enum: DEBUG, INFO, PASS, ERROR
+        } catch (IllegalArgumentException ex) {
+            // Accept a few aliases people often pass in
+            return switch (v) {
+                case "WARN", "WARNING" -> Level.INFO;   // no WARN in our enum; map to INFO
+                case "FATAL"           -> Level.ERROR;
+                case "TRACE"           -> Level.DEBUG;
+                default                -> Level.INFO;    // fallback
+            };
+        }
+    }
+
+    /* ========================= LOGGING API ========================= */
+
+    public static void debug(String msg)                 { log(Level.DEBUG, tag(), msg, null); }
+    public static void debug(String tag, String msg)     { log(Level.DEBUG, tag, msg, null); }
+    public static void info(String msg)                  { log(Level.INFO,  tag(), msg, null); }
+    public static void info(String tag, String msg)      { log(Level.INFO,  tag, msg, null); }
+    public static void pass(String msg)                  { log(Level.PASS,  tag(), msg, null); }
+    public static void pass(String tag, String msg)      { log(Level.PASS,  tag, msg, null); }
+    public static void error(String msg, Throwable t)    { log(Level.ERROR, tag(), msg, t); }
+    public static void error(String tag, String msg)     { log(Level.ERROR, tag, msg, null); }
+    public static void error(String tag, String msg, Throwable t) { log(Level.ERROR, tag, msg, t); }
+
+    /** Core sink. Safe even if init property was invalid. */
+    public static void log(Level lvl, String tag, String msg, Throwable t) {
+        if (lvl == null) lvl = Level.INFO;
+        if (!isEnabled(lvl)) return;
+
+        String ts  = TS.now();
+        String sec = SECTION.get();
+        String head = (sec == null || sec.isBlank())
+                ? String.format("[%s] %-5s %s", ts, lvl, safe(tag))
+                : String.format("[%s] %-5s %-18s | %s", ts, lvl, truncate(sec, 18), safe(tag));
+        String line = (msg == null) ? "" : msg;
+
+        // Console
+        System.out.println(head + "  " + line);
+        if (t != null) t.printStackTrace(System.out);
+
+        // TestNG Reporter (guarded: Reporter may be absent or not initialized)
+        try {
+            Reporter.log(head + "  " + htmlEscape(line), true);
+            if (t != null) {
+                Reporter.log("<pre style='white-space:pre-wrap'>" + htmlEscape(stackToString(t)) + "</pre>", true);
+            }
+        } catch (Throwable ignore) {
+            // Ignore Reporter failures in non-TestNG contexts
+        }
+
+        // Optional: forward to a network or file recorder if present
+        try {
+            NetworkConsoleRecorder rec = ensureRecorder();
+            if (rec != null) rec.record(head, line, t);
+        } catch (Throwable ignore) {
+            // recorder is optional
+        }
+    }
+
+    public static boolean isEnabled(Level lvl) {
+        return levelOrdinal(lvl) >= levelOrdinal(threshold);
+    }
+
+    private static int levelOrdinal(Level l) {
+        return switch (l) {
+            case DEBUG -> 10;
+            case INFO  -> 20;
+            case PASS  -> 25;
+            case ERROR -> 40;
+        };
+    }
+
+    /* ========================= SECTIONS ========================= */
+
+    /** Set a section label (shown in log header); returns previous value. */
+    public static String beginSection(String name) {
+        String prev = SECTION.get();
+        SECTION.set(name);
+        log(Level.INFO, "BEGIN", "===== " + name + " =====", null);
+        return prev;
+    }
+
+    /** Restore a previous section (use the value returned by beginSection). */
+    public static void endSection(String previous) {
+        String current = SECTION.get();
+        if (current != null) {
+            log(Level.INFO, "END", "===== " + current + " =====", null);
+        }
+        SECTION.set(previous);
+    }
+
+    /** Run a block within a named section (always restores previous). */
+    public static void runSection(String name, Runnable block) {
+        String prev = beginSection(name);
+        try {
+            NetworkConsoleRecorder rec = ensureRecorder();
+            if (rec != null) {
+                rec.record("Method: " + name, () -> block.run());
+            } else {
+                block.run();
+            }
+        } finally {
+            endSection(prev);
+        }
+    }
+
+    /* ========================= INTERNALS ========================= */
+
+    private static String tag() { return "LOG"; }
+
+    private static String safe(String s) { return (s == null) ? "" : s; }
+
+    private static String truncate(String s, int n) {
+        if (s == null) return "";
+        return (s.length() <= n) ? s : s.substring(0, n - 1) + "…";
+    }
+
+    private static String htmlEscape(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static String stackToString(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(t.toString()).append('\n');
+        for (StackTraceElement e : t.getStackTrace()) {
+            sb.append("    at ").append(e).append('\n');
+        }
+        Throwable cause = t.getCause();
+        if (cause != null && cause != t) {
+            sb.append("Caused by: ").append(stackToString(cause));
+        }
+        return sb.toString();
+    }
+
+    /** Timestamp helper. */
+    private static final class TS {
+        private static final ThreadLocal<SimpleDateFormat> FMT =
+                ThreadLocal.withInitial(() -> new SimpleDateFormat("HH:mm:ss.SSS"));
+        static String now() { return FMT.get().format(new Date()); }
+    }
+
+    /* ===== Optional recorder stub (keeps compilation even if class isn’t on classpath) ===== */
+
+    /** If you have a real recorder elsewhere, make sure this matches that API or remove this stub. */
+    public interface NetworkConsoleRecorder {
+        default void record(String header, String message, Throwable t) { /* no-op */ }
+        default void record(String header, Runnable r) { r.run(); }
+    }
+
+    /** Return your recorder here; stubbed to null by default. */
+    private static NetworkConsoleRecorder ensureRecorder() {
+        // Example: return NetworkConsole.get(); // if you have such a singleton
+        return null;
+    }
+}

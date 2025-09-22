@@ -1,0 +1,130 @@
+package util;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
+public class CanvasPage {
+
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final JavascriptExecutor js;
+
+    public CanvasPage(WebDriver driver, Duration timeout) {
+        this.driver = driver;
+        this.wait   = new WebDriverWait(driver, timeout);
+        this.js     = (JavascriptExecutor) driver;
+    }
+
+    private By canvasLocator() {
+        return By.cssSelector("app-drawing-board canvas");
+    }
+
+    /** Drag any palette tile (cdk-drag) to the canvas at (fx, fy) where fx/fy are 0..1 fractions. */
+    public void dragToCanvas(WebElement source, int fx, int fy) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(canvasLocator()));
+
+        // Make sure both are in view for reliable pointer math
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", source);
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // Snapshot canvas to confirm change later
+        String before = (String) js.executeScript("return arguments[0].toDataURL('image/png');", canvas);
+
+        // Get viewport rects in CSS pixels (safe wrt zoom/scroll)
+        @SuppressWarnings("unchecked")
+        Map<String, Number> s = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height};", source);
+        @SuppressWarnings("unchecked")
+        Map<String, Number> c = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height};", canvas);
+
+        int startX = (int) Math.round(s.get("x").doubleValue() + s.get("w").doubleValue()/2.0);
+        int startY = (int) Math.round(s.get("y").doubleValue() + s.get("h").doubleValue()/2.0);
+        int endX   = (int) Math.round(c.get("x").doubleValue() + c.get("w").doubleValue()*fx);
+        int endY   = (int) Math.round(c.get("y").doubleValue() + c.get("h").doubleValue()*fy);
+
+        // Actions sequence: nudge to start CDK drag -> move to canvas point -> tiny jiggle -> release
+        int nudgeX = 50, nudgeY = 50;                   // exceed CDK drag threshold
+        int dx = (endX - startX) - nudgeX;
+        int dy = (endY - startY) - nudgeY;
+        
+        
+        new Actions(driver)
+            .moveToElement(source)                     // centers by default
+            .clickAndHold()
+            .pause(Duration.ofMillis(200))
+            .moveByOffset(10, 10)
+            .pause(Duration.ofMillis(120))
+            .moveToElement(canvas, fx ,fy )
+            .moveByOffset(3, 3)                        // jiggle so canvas sees a move
+            .pause(Duration.ofMillis(80))
+            .release()
+            .perform();
+
+        // If pixels didn’t change, use PointerEvents fallback (some canvas apps need it)
+        String after = (String) js.executeScript("return arguments[0].toDataURL('image/png');", canvas);
+        if (before != null && before.equals(after)) {
+            pointerEventsFallback(source, endX, endY);
+        }
+    }
+
+    /** Synthetic pointer events at viewport (x,y) – robust for canvas listeners on document/window. */
+    private void pointerEventsFallback(WebElement source, int x, int y) {
+        String script =
+            "const src=arguments[0], x=arguments[1], y=arguments[2];" +
+            "const id=1;" +
+            "function pe(t,el,x,y){el.dispatchEvent(new PointerEvent(t,{pointerId:id,pointerType:'mouse',bubbles:true,cancelable:true,buttons:1,clientX:x,clientY:y,isPrimary:true}));}" +
+            "function me(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,buttons:1,clientX:x,clientY:y}));}" +
+            "pe('pointerdown',src,0,0); me('mousedown',src,0,0);" +
+            "pe('pointermove',document,x,y); me('mousemove',document,x,y);" +
+            "pe('pointermove',document,x+4,y+4); me('mousemove',document,x+4,y+4);" +
+            "pe('pointerup',document,x+4,y+4); me('mouseup',document,x+4,y+4);";
+        js.executeScript(script, source, x, y);
+    }
+
+ 
+    
+    
+      
+    
+    /** Click at a fraction of the blue drawing area inside the canvas */
+    public void clickBlueArea(double fx, double fy) {
+        WebElement canvas = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector("app-drawing-board canvas")));
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", canvas);
+
+        // Get canvas rect
+        Map<String, Number> c = (Map<String, Number>) js.executeScript(
+            "const b=arguments[0].getBoundingClientRect();" +
+            "return {x:b.left,y:b.top,w:b.width,h:b.height};", canvas);
+
+        double left = c.get("x").doubleValue();
+        double top  = c.get("y").doubleValue();
+        double w    = c.get("w").doubleValue();
+        double h    = c.get("h").doubleValue();
+
+        // Choose fractions inside the inner rectangle (not full canvas edges!)
+        int clickX = (int)Math.round(left + w * fx);
+        int clickY = (int)Math.round(top  + h * fy);
+
+        // Use JS to click at absolute screen coords
+        String script =
+            "const x=arguments[0], y=arguments[1];" +
+            "const el=document.elementFromPoint(x,y);" +
+            "if(el){el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,clientX:x,clientY:y}));" +
+            "el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:x,clientY:y}));" +
+            "el.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:x,clientY:y}));}";
+        js.executeScript(script, clickX, clickY);
+
+        System.out.printf("Clicked blue area at fraction (%.2f, %.2f) => (%d, %d)%n", fx, fy, clickX, clickY);
+    }
+
+
+
+}

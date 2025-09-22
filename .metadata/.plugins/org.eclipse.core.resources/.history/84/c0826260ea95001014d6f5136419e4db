@@ -1,0 +1,656 @@
+package POM;
+
+import java.awt.AWTException;
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.*;
+import java.util.NoSuchElementException;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.*;
+
+import util.CanvasPage;
+import util.UIActions;
+import util.ExpressionUtils;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+public class ConfiguratorTesting {
+
+    private final WebDriver driver;
+    private final WebDriverWait wait;
+    private final JavascriptExecutor js;
+    private final UIActions ui;
+    private final CanvasPage dnd;
+    private final ExpressionUtils expression;
+
+    private final int rdmnumber = (int)(Math.random() * 1000);
+    private final String formattedDate = new SimpleDateFormat(" MMM dd yyyy").format(new Date());
+
+    // ---------- NAV ----------
+    private final By quotesTabBy = By.xpath("(//div[@class='nav-link c-pointer'])[4]");
+
+    @FindBy(xpath="(//div[@class='cursor-pointer rotate'])[2]") private WebElement actionbutton;
+    @FindBy(xpath="(//button[contains(text(),'View')])[1]")    private WebElement viewbutton;
+    @FindBy(xpath="(//button[contains(text(),'Expand')])[1]")  private WebElement expandButton;
+    @FindBy(xpath="(//button[normalize-space()='View'])[2]")   private WebElement firstViewInExpanded;
+
+    // ---------- Create Design ----------
+    @FindBy(xpath="//button[contains(text(),'Create design')]") private WebElement createDesignTab;
+    @FindBy(xpath="//input[@formcontrolname='designCode']")     private WebElement designreftextfield;
+    @FindBy(xpath="input[@formcontrolname='designName']")     	private WebElement designNametextfield; 
+    @FindBy(xpath="//input[@formcontrolname='quantity']")       private WebElement designqtyfield;
+    @FindBy(xpath="//input[@formcontrolname='location']")       private WebElement deslocationfield;
+    @FindBy(xpath="//input[@formcontrolname='floorNo']")        private WebElement floornofield;
+    @FindBy(xpath="//textarea[@formcontrolname='remark']")      private WebElement notetextfield;
+    @FindBy(xpath="//button[.='Apply']")                        private WebElement applybutton;
+    @FindBy(xpath="//select[@formcontrolname='fanShape']")		private WebElement fanshape;
+    @FindBy(xpath="//input[@formcontrolname='fanSizeWidth']")	private WebElement fanwidth;
+    @FindBy(xpath="//input[@formcontrolname='fanSizeHeight']")	private WebElement fanheight;
+    @FindBy(xpath="//select[@formcontrolname='fanPosition']")	private WebElement fanposition;
+    @FindBy(xpath="(//button[contains(.,'Save')])")         	private WebElement savebutton;
+
+    // ---------- Left toolbar ----------
+    @FindBy(xpath="(//a[@class='menu-item c-pointer'])[1]") 	private WebElement mullionbutton;
+    @FindBy(xpath="(//a[@class='menu-item c-pointer'])[3]")		private WebElement couplerbutton;
+    @FindBy(xpath="(//a[@class='menu-item c-pointer'])[2]") 	private WebElement designbutton;
+    @FindBy(xpath="(//button[.='Confirm'])[2]")             	private WebElement confirmTab;
+    @FindBy(xpath="(//div[@class='f-btn border-0'])[7]")    	private WebElement cleanButton;
+    @FindBy(xpath="//button[.='Yes']")					    	private WebElement cleanYesButton;
+    
+    //-------------------Properties box xpath------------------------------
+    
+    @FindBy(xpath="//select[@formcontrolname='brand2']")	    private WebElement brandDropdown;
+    @FindBy(xpath="//select[@formcontrolname='system']")	    private WebElement systemDropdown;
+    @FindBy(xpath="//select[@formcontrolname='partGroup']")	    private WebElement partgroupDropdown;
+    @FindBy(xpath="(//button[contains(text(),'Apply')])[1]")  	private WebElement propertiesBoxApplyButton;
+    
+    //-------------------canvas dimension xpath------------------------------
+    @FindBy(xpath="(//input[@type='text'])[10]")			    private WebElement widthDimensions;
+    @FindBy(xpath="(//input[@type='text'])[11]")			    private WebElement heightDimensions;
+    
+  
+    public ConfiguratorTesting(WebDriver driver) {
+        this.driver = driver;
+        this.wait   = new WebDriverWait(driver, Duration.ofSeconds(20));
+        this.js     = (JavascriptExecutor) driver;
+        this.ui     = new UIActions(driver);
+        this.expression     = new ExpressionUtils();
+        this.dnd    = new CanvasPage(driver, Duration.ofSeconds(20));
+        PageFactory.initElements(driver, this);
+    }
+
+    // ---------- Core locators ----------
+    private By canvasBy() { return By.cssSelector("app-drawing-board canvas"); }
+
+    // Dropdown palette (Bootstrap, appended to <body>)
+    private By dropdownRoot()   { return By.cssSelector("div.left-panel.dropdown-menu[data-popper-placement]"); }
+    private By dropdownTiles()  { return By.cssSelector("div.left-panel.dropdown-menu[data-popper-placement] .cdk-drag.lp-col"); }
+
+    // Docked list (when not using dropdown)
+    private By dockedOpenable() { return By.cssSelector(".lp-body.openable-sashs .cdk-drag.lp-col"); }
+    private By dockedTiltTurn() { return By.cssSelector(".lp-body.tilt-turn .cdk-drag.lp-col"); }
+    private By dockedTwinSash() { return By.cssSelector(".lp-body.twin-sashs .cdk-drag.lp-col"); }
+    private By dockedSliding()  { return By.cssSelector(".lp-body.sliding-sashs .cdk-drag.lp-col"); }
+    private By dockedAddons()  { return By.cssSelector(".lp-body.others .cdk-drag.lp-col"); }
+
+    // ---------- small utils ----------
+    private void hover(WebElement el) {
+        new Actions(driver).moveToElement(el).pause(Duration.ofMillis(120)).perform();
+    }
+    private boolean clickIfVisible(WebElement el, Duration timeout) {
+        try {
+            WebElement btn = new WebDriverWait(driver, timeout).until(ExpectedConditions.elementToBeClickable(el));
+            js.executeScript("arguments[0].scrollIntoView({block:'center'})", btn);
+            btn.click(); return true;
+        } catch (TimeoutException e) { return false; }
+    }
+    private WebElement waitCanvas() {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(canvasBy()));
+    }
+
+    // ---------- palette retrieval with fallback ----------
+    /** Click a toolbar button that opens a palette, then return its tiles (dropdown preferred, docked as fallback). */
+    private List<WebElement> openPaletteAndGetTiles(WebElement toolbarButton) {
+        ui.click(toolbarButton, "Open palette");
+
+        // Try dropdown (preferred)
+        try {
+            WebElement root = wait.until(ExpectedConditions.presenceOfElementLocated(dropdownRoot()));
+            wait.until(ExpectedConditions.visibilityOf(root));
+            return wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(dropdownTiles()));
+        } catch (TimeoutException ignored) {
+            // Fallback to docked list (screen where the full panel is in-page)
+            List<By> sections = Arrays.asList(dockedOpenable(), dockedTiltTurn(), dockedTwinSash(), dockedSliding());
+            for (By sec : sections) {
+                List<WebElement> els = driver.findElements(sec);
+                if (!els.isEmpty()) {
+                    wait.until(ExpectedConditions.visibilityOfAllElements(els));
+                    return els;
+                }
+            }
+            throw new NoSuchElementException("No palette tiles found (neither dropdown nor docked).");
+        }
+    }
+
+    // Section map for docked retrieval by name
+    private By sectionByName(String section) {
+    	List<WebElement> tiles = openPaletteAndGetTiles(designbutton);
+        String key = section.trim().toLowerCase();
+        switch (key) {
+            case "Openable Designs": case "openable designs": return dockedOpenable();
+            case "Tilt & Turn Designs": case "tilt & turn designs": return dockedTiltTurn();
+            case "Twin Sash Designs": case "twin sash designs": return dockedTwinSash();
+            case "Sliding Designs": case "sliding designs": return dockedSliding();
+            case "Add-ons": case "add ons": return dockedAddons();
+            
+            default: throw new IllegalArgumentException("Unknown section: " + section);
+        }
+    }
+
+    private WebElement tileByIndex(List<WebElement> tiles, int index) {
+        if (index < 0 || index >= tiles.size())
+            throw new IllegalArgumentException("Index " + index + " out of range (tiles=" + tiles.size() + ")");
+        js.executeScript("arguments[0].scrollIntoView({block:'center'})", tiles.get(index));
+        return tiles.get(index);
+    }
+    
+
+    // ======================= PUBLIC FLOWS =======================
+
+    public void openQuotesPage() { ui.click(quotesTabBy, "Clicked on quotes tab"); }
+
+    public void mouseHoverToRevealView() {
+        wait.until(ExpectedConditions.visibilityOf(actionbutton));
+        hover(actionbutton);
+        if (clickIfVisible(expandButton, Duration.ofSeconds(2))) {
+            ui.click(firstViewInExpanded, "Clicked first view inside expanded row");
+        } else {
+            hover(viewbutton);
+            ui.click(viewbutton, "Clicked view button");
+        }
+    }
+    
+    @FindBy(xpath="//button[.='Cancel']")
+    private WebElement designCancelButton;
+    
+    public static boolean waitUntilEnabled(WebDriver driver, WebElement webEl, long timeoutSeconds) {
+        WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(timeoutSeconds));
+        return wait.until(driver1 -> {
+            try {
+                WebElement el = driver1.findElement((By) webEl);
+                return (el.isDisplayed() && el.isEnabled()) ? true : false;
+            } catch (StaleElementReferenceException | NoSuchElementException e) {
+                return false;
+            }
+        });
+    }
+
+    public void createDesign(String desRef, String designName, String qty, String location, String floorNo, String desWidth, String desHeight) throws AWTException, InterruptedException {
+        //wait.until(ExpectedConditions.elementToBeClickable(createDesignTab));
+    	waitUntilEnabled(driver, createDesignTab, 20);      
+            
+        Thread.sleep(3000);
+        ui.click(createDesignTab, "Clicked on create design");
+        System.out.println("Design Details : "+ desRef +" - "+ designName +" - "+ qty+" - "+ location +" - "+ floorNo +" - "+ desWidth +" - "+ desHeight);
+       // Thread.sleep(2000);
+        ui.type(designreftextfield, desRef, "Des Ref Entered");
+        //ui.type(designNametextfield, designName, "Des Name Entered");
+        ui.type(designqtyfield, qty, "");
+        ui.type(deslocationfield, location, "");
+        ui.type(floornofield, floorNo, "");
+        ui.type(notetextfield, "Remark Automation " + rdmnumber + formattedDate, "");
+        ui.click(applybutton, "Clicked on apply button");
+        //ui.click(designCancelButton, "");
+        Thread.sleep(2000);
+        //Change default width & Height
+    	ui.type(widthDimensions, desWidth, "");
+    	Robot rb= new Robot();
+    	rb.keyPress(KeyEvent.VK_ENTER);
+    	rb.keyRelease(KeyEvent.VK_ENTER);
+    	Thread.sleep(1000);
+    	ui.type(heightDimensions, desHeight, "");
+     	rb.keyPress(KeyEvent.VK_ENTER);
+    	rb.keyRelease(KeyEvent.VK_ENTER);
+    	Thread.sleep(1000);
+    }
+
+    public void saveDesign() throws InterruptedException { 
+    	Thread.sleep(2000);
+    	ui.click(savebutton, "Clicked on save button");
+    Thread.sleep(5000);}
+
+    // ---------- High-level drags (use CanvasPage.dragToCanvas) ----------
+
+    /** Drag the first Mullion tile to ~35% x ~35% on canvas; works for dropdown or docked automatically. 
+     * @throws InterruptedException */
+    public void mullionDragFirstToCanvas(int dividerIndex, int x, int y) throws InterruptedException {
+        List<WebElement> tiles = openPaletteAndGetTiles(mullionbutton);
+        dnd.dragToCanvas(tiles.get(dividerIndex), x, y);
+        Thread.sleep(2000);
+        ui.click(confirmTab, "Clicked on confirm tab");
+    }
+    
+    public void couplerDragFirstToCanvas(int dividerIndex, int x, int y) throws InterruptedException {
+        List<WebElement> tiles = openPaletteAndGetTiles(couplerbutton);
+        dnd.dragToCanvas(tiles.get(dividerIndex), x, y);
+        Thread.sleep(1000);
+    
+    }
+    
+    /** Open the Designs palette and drag by global index (dropdown preferred). 
+     * @throws InterruptedException */
+    public void designsDragByIndex(int globalIndex, int fx, int fy) throws InterruptedException {
+        List<WebElement> tiles = openPaletteAndGetTiles(designbutton);
+        dnd.dragToCanvas(tileByIndex(tiles, globalIndex), fx, fy);
+        ui.click(confirmTab, "Clicked on confirm tab");
+        Thread.sleep(2000);
+    }
+
+    /** Drag by section + index (works when docked list is visible). 
+     * @throws InterruptedException */
+    public void dragFromSection(String sectionName, int index, int fx, int fy) throws InterruptedException {
+    	
+        // Ensure section exists and visible (if dropdown is open, tiles are not split by section → use designsDragByIndex)
+        By sec = sectionByName(sectionName);
+        System.out.println(sec);
+        List<WebElement> tiles = wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(sec));
+        WebElement tilesIndex= tileByIndex(tiles, index);
+        System.out.println(tilesIndex);
+        dnd.dragToCanvas(tilesIndex, fx, fy);
+        Thread.sleep(2000);
+        if(sectionName != null & sectionName=="add ons") 
+        {
+        	fanSpecification("Rectangle","500","500",""); 
+        }
+        Thread.sleep(2000);
+        ui.click(confirmTab2, "Clicked on confirm tab");
+        Thread.sleep(3000);
+    }
+    
+    public void fanSpecification(String fanShape, String fanWidth, String fanHeight, String fanDia) throws InterruptedException
+    {
+    	if(fanShape=="Rectangle")
+    	{
+        	ui.click(fanshape, "");
+        	Select sel= new Select(fanshape);
+        	sel.selectByVisibleText("Rectangle");
+        	Thread.sleep(1000);
+        	 ui.type(fanwidth, fanWidth, "");
+        	 ui.type(fanheight, fanHeight, "");
+        	 //ui.click(confirmTab2, "Clicked on confirm tab");
+    	}
+    }
+    
+    public void selectBrandName(String brandName) throws InterruptedException
+    {
+    	ui.click(brandDropdown, "Clicked on brand");
+    	Select sel=new Select(brandDropdown);
+    	sel.selectByVisibleText(brandName);
+    	Thread.sleep(2000);
+    	//ui.click(propertiesBoxApplyButton, "Clicked on apply button");
+    }
+    
+    public void selectSystemName(String systemName) throws InterruptedException
+    {
+    	ui.click(systemDropdown, "Clicked on system");
+    	Select sel=new Select(systemDropdown);
+    	sel.selectByVisibleText(systemName);
+    	Thread.sleep(2000);
+    	ui.click(propertiesBoxApplyButton, "Clicked on apply button");
+    }
+    
+    
+
+ //------------------------------------Execution of canvas----------------------------------------------------   
+    int canvasEndX=  210;
+    int canvasEndY= -380;
+    public void twoTrackTwoShutter() throws InterruptedException
+    {
+//    	 List<WebElement> tiles = openPaletteAndGetTiles(designbutton);
+    	 int dropX= 0;
+    	 int dropY= 0;
+    	 dragFromSection("sliding designs", 0, dropX, dropY);
+   	
+    }
+
+    @FindBy(xpath="(//button[.='Confirm'])[1]")             private WebElement confirmTab2;
+    public void createFixOpenableDesign() throws InterruptedException
+    {
+    	mullionDragFirstToCanvas(0,0,0);
+    	 int dropX=(canvasEndX/2);
+    	 int dropY=0;
+    	 dragFromSection("openable designs", 1, dropX, dropY);
+    	 
+    }
+    public void createFanOpenDesign() throws InterruptedException
+    {
+    	//Drag the vertical mullion in the center
+    	mullionDragFirstToCanvas(0,0,0);
+    	
+    	//Drag the horizontal mullion in the center of the right side
+    	mullionDragFirstToCanvas(1,(canvasEndX/2),(canvasEndY/2));
+    	
+    	//left side : drag left openable 
+    	int dropX = -1 * (canvasEndX/2);
+    	int dropY = 0;
+   	 	dragFromSection("openable designs", 2, dropX, dropY);
+   	 	Thread.sleep(2000);
+   	 	
+    	//top right side : Fan
+    	dropX = (canvasEndX/2);
+    	dropY = (canvasEndY * 3/4);
+   	 	dragFromSection("add ons", 0, dropX, dropY);
+   	 	Thread.sleep(2000);
+    	//bottom right : drag top hung 
+   	 	dropX=(canvasEndX/2);
+   	 	dropY=0;
+	 	dragFromSection("openable designs", 3, dropX, dropY);
+	 	Thread.sleep(2000);
+    }
+    
+    public void createSlidingTopFix() throws InterruptedException
+    {
+    	//Drag the horizontal coupler in the center
+    	couplerDragFirstToCanvas(1,0,0);
+    	
+    	//Drag the vertical mullion in the top
+//    	mullionDragFirstToCanvas(0,0,(canvasEndY * 3/4));
+//    	
+//    	//left top side : do nothing(Fixed design)
+//
+//   	 
+//    	//top right side : fan 
+//    	int dropX = (canvasEndX/2);
+//    	int dropY = (canvasEndY * 3/4);
+//   	 	dragFromSection("add ons", 0, dropX, dropY);
+//   	 	Thread.sleep(2000);
+//   	 	
+//    	//bottom : 2T2S 
+//   	 	dropX = 0;
+//   	 	dropY = (canvasEndY * 3/4);
+//	 	dragFromSection("sliding designs", 0, dropX, dropY);
+//	 	Thread.sleep(2000);
+//	 	
+//	 	//top left : top hung design
+//   	 	dropX= -1 * (canvasEndX/2);
+//   	 	//dropY= (canvasEndY * 3/4);
+//   	 	dropY= canvasEndY;
+//   	 	System.out.println("Can - " + canvasEndX + "    "  + canvasEndY);
+//   	 	System.out.println("drop -" + dropX + "    "  + dropY);
+//	 	dragFromSection("openable designs", 3, dropX, dropY);
+//	 	Thread.sleep(2000);
+ 
+    }
+    
+    public void checkingEndXEndY() throws InterruptedException, AWTException
+    {
+    	ui.type(widthDimensions, "2000", "");
+    	Robot rb=new Robot();
+    	rb.keyPress(KeyEvent.VK_ENTER);
+    	rb.keyRelease(KeyEvent.VK_ENTER);
+    	ui.type(heightDimensions, "2002", "");
+     	rb.keyPress(KeyEvent.VK_ENTER);
+    	rb.keyRelease(KeyEvent.VK_ENTER);
+    	
+    	int dropX = (canvasEndX/2);
+    	int dropY = (canvasEndY * 3/4);
+    	
+    	//Drag the horizontal coupler in the center
+    	couplerDragFirstToCanvas(1,0,(canvasEndY/2));
+    	
+    	//Top : 2 track 2 panel 
+   	 	dropX = 0;
+   	 	dropY = (canvasEndY * 3/4);
+	 	dragFromSection("sliding designs", 0, dropX, dropY);
+	 	Thread.sleep(2000);
+	 	
+	 	//Drag the vertical multiple mullion in the bottom
+    	mullionDragFirstToCanvas(2,0,(canvasEndY/2));
+    	
+    	//Drag the Horizontal mullion in the center
+    	mullionDragFirstToCanvas(3,0,(canvasEndY * 1/4));
+    	
+    	//Drag the Horizontal mullion in the right
+       	mullionDragFirstToCanvas(3,(canvasEndX * 2/4),(canvasEndY * 2/4));
+    	
+    	//Drag the Horizontal mullion in the left
+       	mullionDragFirstToCanvas(3, -1 * (canvasEndX * 1/3),(canvasEndY * 1/3));
+    	
+    	//Drag top hung
+  	 	dropX= -1 * (canvasEndX * 1/3);
+   	 	dropY= ((canvasEndY/2) * 1/3);
+   	 	dragFromSection("openable designs", 3, dropX, dropY);
+    	
+    }
+    
+    public void clickOnFrame() throws InterruptedException
+    {    	// Click top handle
+    	//int[] inner = dnd.measureBlueInnerRect(); // x,y,w,h (inner)
+    	//Thread.sleep(5000);
+    	// Click near the top middle of the blue rectangle
+    	// Click the **center** of the blue area (robust; uses overlay to find the true inner rect)
+    	// Center of the blue panel
+//    	dnd.clickBlueCenter();
+//    	Thread.sleep(5000);
+//    	 12px inside from the TOP edge
+//    	dnd.clickBlueNearSide("top", 12);
+//
+//    	// 12px insThread.sleep(5000);ide from the LEFT edge
+//    	dnd.clickBlueNearSide("left", 12);
+//    	Thread.sleep(5000);
+//    	// 12px inside from the RIGHT edge
+//    	dnd.clickBlueNearSide("right", 12);
+//    	Thread.sleep(5000);
+//    	// 12px inside from the BOTTOM edge
+//    	dnd.clickBlueNearSide("bottom", 12);
+
+
+//-----------------------------outside frame--------------------------------------------------
+    	    	
+    //	int[] outer = dnd.measureBlueOuterRect(); // x,y,w,h (outer)
+    //	Thread.sleep(5000);
+    	
+    	
+    	// Click halfway in the frame band near TOP (i.e., between outer and inner edges)
+//    	dnd.clickFrameBandNearSide("top", 0.2);
+//    	dnd.clickFrameBandNearSide("top", 0.2);
+ //   	Thread.sleep(2000);
+//    	selectBrandName("OTHERS");
+//    	selectSystemName("");
+//    
+    	
+       	// Click very close to the INNER edge on LEFT (bandOffset=1 means inner edge)
+//    	dnd.clickFrameBandNearSide("left", 0.2);
+//    	Thread.sleep(5000);
+    	
+    	
+    	// Click very close to the OUTER edge on RIGHT (bandOffset=0 means outer edge)
+    	dnd.clickFrameBandNearSide("right", 0.1);
+       	Thread.sleep(5000);
+       
+       	
+    	// For the exact “outer side” you showed in the video, start with 0.2–0.3 and adjust:
+    	dnd.clickFrameBandNearSide("bottom", 0.1);
+    	Thread.sleep(5000);
+    }
+    
+    public static List<String[]> GetDesignCordinates(String desMasterId) throws IOException {
+    	
+        List<String[]> matches = new ArrayList<>();
+        String CSV_PATH = "./Configuration/DesignMasterCoordinates.csv";
+        try (BufferedReader br = new BufferedReader(new FileReader(CSV_PATH))) {
+            String line;
+            boolean headerRead = false;
+            int desColIndex = 0;
+
+            while ((line = br.readLine()) != null) {
+                // Skip empty lines
+                if (line.trim().isEmpty()) continue;
+
+                // Split CSV line (basic CSV without quoted commas)
+                String[] cells = line.split(",", -1);
+
+                // Handle header: find index of "DesMasterId"
+                if (!headerRead) {
+                    headerRead = true;
+                    for (int i = 0; i < cells.length; i++) {
+                        if ("DesMasterId".equalsIgnoreCase(cells[i].trim())) {
+                            desColIndex = i;
+                            break;
+                        }
+                    }
+                    continue; // move to first data row
+                }
+
+                // Guard if row shorter than expected
+                if (desColIndex >= cells.length) continue;
+
+                if (cells[desColIndex].trim().equalsIgnoreCase(desMasterId.trim())) {
+                    matches.add(cells);
+                }
+            }
+        }
+        return matches;
+    }
+
+    public void DynamicDesignCreation(String desMasterId) throws InterruptedException, IOException
+    {
+    	//Get the corordinates as per designType
+    	List<String[]> rows = GetDesignCordinates(desMasterId);
+    	for (String[] r : rows) {
+    		//r[0]=DesMasterId, r[1]=Component Name, r[2]=EndX, r[3]=EndY (based on header)
+    		System.out.println("DesMasterId-"+r[0]+"; Component Name= "+ r[1] + "; EndX=" + r[2] + "; EndY="+ r[3]);
+    	    System.out.println(String.join(" | ", r));
+    	}
+    	
+    	
+    	Thread.sleep(1000);
+    	for (String[] r : rows) {
+    	    // r[0]=DesMasterId, r[1]=Component Name, r[2]=EndX, r[3]=EndY (based on header)
+    	    System.out.println(String.join(" | ", r));
+    	String componentName = r[1];
+    	String strX = r[2];
+    	String strY = r[3];
+    	int dropX = Integer.parseInt(strX);//expression.ExpressionSolver(tokens[2], canvasEndX, canvasEndY);
+    	int dropY = Integer.parseInt(strY);//expression.ExpressionSolver(tokens[3], canvasEndX,canvasEndY);
+
+
+        //System.out.println("Line: "+ lineNo +" - "+ col + 1 +" - ColValue:"+ token);
+
+        switch (componentName) {
+            case "Vertical Mullion":
+            	//Drag the vertical mullion in the bottom
+            	mullionDragFirstToCanvas(0, dropX, dropY);
+            	break;
+
+            case "Horizontal Mullion":
+            	mullionDragFirstToCanvas(1, dropX, dropY);
+            	break;
+
+
+            case "Right Openable":
+            	dragFromSection("openable designs", 1, dropX, dropY);
+            	break;
+            	
+            case "Left Openable":
+            	dragFromSection("openable designs", 2, dropX, dropY);
+            	break;
+
+            case "Top Hung":
+            	dragFromSection("openable designs", 3, dropX, dropY);
+            	break;
+
+            case "Bottom Hung":
+            	dragFromSection("openable designs", 4, dropX, dropY);
+            	break;
+
+            case "French Openable":
+            	dragFromSection("openable designs", 5, dropX, dropY);
+            	break;
+            case "2 Track 2 Panel":
+            	dragFromSection("sliding designs", 0, dropX, dropY);
+            	break;
+            	
+            case "2 Track X-2X-X Panel":
+            	dragFromSection("sliding designs", 1, dropX, dropY);
+            	break;
+            	
+            case "2 Track X-X-X Panel":
+            	dragFromSection("sliding designs", 2, dropX, dropY);
+            	break;
+
+	        case "3 Track 3 Panel":
+	        	dragFromSection("sliding designs", 3, dropX, dropY);
+	        	break;
+
+            case "Fan":   
+            	dragFromSection("add ons", 0, dropX, dropY);            	
+                break;
+                
+            case "Vertical Coupling":
+            	//Drag the vertical mullion in the bottom
+            	couplerDragFirstToCanvas(0, dropX, dropY);
+            	break;
+
+	        case "Horizontal Coupling":
+	        	couplerDragFirstToCanvas(1, dropX, dropY);
+	        	break;
+
+            case "Confirm":
+                // TODO: Select Horizontal Mullion option
+                break;
+
+            // === Example: tokens that look like numbers or expressions ===
+            default:
+                // If you expect patterns like "W/3", "H*0.25", "150", etc.,
+                // you can handle them with simple checks/regex before or here:
+
+                if (componentName.matches("(?i)W\\s*/\\s*\\d+")) {
+                    // TODO: Handle W/n (e.g., W/3)
+                    // Parse divisor and compute target X
+                    // String d = token.replaceAll("(?i)W\\s*/\\s*(\\d+)", "$1");
+                    // int divisor = Integer.parseInt(d);
+                    // ...
+                    break;
+                }
+
+                if (componentName.matches("(?i)H\\s*/\\s*\\d+")) {
+                    // TODO: Handle H/n (e.g., H/3)
+                    break;
+                }
+
+                if (componentName.matches("\\d+(?:\\.\\d+)?")) {
+                    // TODO: Handle raw numeric value (pixels, mm, etc., as per your app)
+                    // double value = Double.parseDouble(token);
+                    break;
+                }
+                
+                break;
+        	}
+		 	Thread.sleep(2000);
+    	}	//End of For loop
+    }
+    
+	// Convenience wrapper used earlier
+    public void newDesignCreate(String designref,String designName, String Qty, String Loc, String FloorNo , String desWidth, String desHeight) throws AWTException, InterruptedException 
+    { createDesign(designref, designName, Qty, Loc, FloorNo, desWidth, desHeight); }
+
+    // Optional: expose canvas to callers when needed
+    public WebElement canvas() { return waitCanvas(); }
+    
+    
+    //Input from CSV File
+    
+    
+}

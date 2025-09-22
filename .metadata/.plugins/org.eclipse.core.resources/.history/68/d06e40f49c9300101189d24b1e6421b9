@@ -1,0 +1,68 @@
+package util;
+
+import org.testng.ITestResult;
+import org.testng.Reporter;
+
+import java.io.File;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
+
+public final class ReporterConsoleBridge {
+  private ReporterConsoleBridge() {}
+
+  public static void install() {
+    final PrintStream originalOut = System.out;
+
+    OutputStream tee = new OutputStream() {
+      private final StringBuilder buf = new StringBuilder();
+      @Override public void write(int b) {
+        char c = (char) b;
+        buf.append(c);
+        if (c == '\n') {
+          String line = buf.toString();
+          originalOut.print(line);                        // keep console
+          Reporter.log(escape(line), false);              // into TestNG logs (picked by our reporter)
+          buf.setLength(0);
+        }
+      }
+      private String escape(String s) {
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+      }
+    };
+
+    System.setOut(new PrintStream(tee, true, StandardCharsets.UTF_8));
+  }
+  public static void logArtifact(String label, Path file) {
+	    if (file == null) return;
+
+	    // --- de-dupe within the current test method ---
+	    ITestResult r = Reporter.getCurrentTestResult();
+	    if (r != null) {
+	      @SuppressWarnings("unchecked")
+	      Set<String> seen = (Set<String>) r.getAttribute("__artifact_links_seen");
+	      if (seen == null) { seen = new HashSet<>(); r.setAttribute("__artifact_links_seen", seen); }
+	      String key = file.toAbsolutePath().toString();
+	      if (!seen.add(key)) return; // already attached for this test; skip duplicate
+	    }
+
+	    // --- build a portable href ---
+	    String href;
+	    try {
+	      Path outRoot = Paths.get(System.getProperty("testng.report.output", "test-output")).toAbsolutePath();
+	      Path abs     = file.toAbsolutePath();
+	      Path rel     = outRoot.relativize(abs);             // if logs/ is under test-output
+	      href = rel.toString().replace(File.separatorChar, '/');
+	    } catch (IllegalArgumentException differentRoots) {
+	      href = file.toUri().toString();                     // fallback: file:///… URL
+	    }
+
+	    Reporter.setEscapeHtml(false);
+	    String text = (label == null ? "artifact" : label);
+	    Reporter.log("<a target='_blank' rel='noopener' href='" + href + "'>" + text + "</a>", true);
+	  }
+}

@@ -1,0 +1,100 @@
+import org.testng.IReporter;
+import org.testng.ISuite;
+import org.testng.ISuiteResult;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.xml.XmlSuite;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
+
+public class EmailableReportWithFailures implements IReporter {
+    // Entry point for TestNG custom reporters
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory) {
+        List<ITestResult> allResults = collectResults(suites);
+        writeHtmlReport(allResults, outputDirectory + "/emailable-report.html"); // Main Report
+
+        List<ITestResult> failedResults = filterFailures(allResults);
+        if (!failedResults.isEmpty()) {
+            writeHtmlReport(failedResults, outputDirectory + "/failures-report.html"); // Failures-only report
+        }
+    }
+
+    // Collect all test results from all suites
+    private List<ITestResult> collectResults(List<ISuite> suites) {
+        List<ITestResult> results = new ArrayList<>();
+        for (ISuite suite : suites) {
+            Map<String, ISuiteResult> suiteResults = suite.getResults();
+            for (ISuiteResult suiteResult : suiteResults.values()) {
+                ITestContext testContext = suiteResult.getTestContext();
+                results.addAll(testContext.getPassedTests().getAllResults());
+                results.addAll(testContext.getFailedTests().getAllResults());
+                results.addAll(testContext.getSkippedTests().getAllResults());
+            }
+        }
+        return results;
+    }
+
+    // Filter only failed results
+    private List<ITestResult> filterFailures(List<ITestResult> results) {
+        List<ITestResult> failed = new ArrayList<>();
+        for (ITestResult r : results) {
+            if (r.getStatus() == ITestResult.FAILURE) {
+                failed.add(r);
+            }
+        }
+        return failed;
+    }
+
+    // Generate the HTML report (for all or failures-only)
+    private void writeHtmlReport(List<ITestResult> results, String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            writer.write("<html><head><title>Automation Test Execution Report</title>");
+            writer.write("<style>body{font-family:Segoe UI,system-ui,Arial,sans-serif;background:#fafafa;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #e6e6e6;padding:10px;vertical-align:top;font-size:14px;}th{background:#f4f6f8;text-transform:uppercase;font-size:12px;letter-spacing:.04em;color:#334155;}tr:nth-child(even){background:#f9f9f9;}</style>");
+            writer.write("</head><body>");
+            writer.write("<h1>Test Result Report</h1>");
+            writer.write("<table>");
+            writer.write("<tr><th>#</th><th>Class</th><th>Method</th><th>Status</th><th>Start</th><th>End</th><th>Duration (ms)</th><th>Error</th></tr>");
+
+            int idx = 1;
+            for (ITestResult r : results) {
+                writer.write("<tr>");
+                writer.write("<td>" + idx++ + "</td>");
+                writer.write("<td>" + esc(r.getTestClass().getName()) + "</td>");
+                writer.write("<td>" + esc(r.getMethod().getMethodName()) + "</td>");
+                writer.write("<td>" + statusString(r.getStatus()) + "</td>");
+                writer.write("<td>" + new Date(r.getStartMillis()) + "</td>");
+                writer.write("<td>" + new Date(r.getEndMillis()) + "</td>");
+                writer.write("<td>" + (r.getEndMillis() - r.getStartMillis()) + "</td>");
+                writer.write("<td>" + esc(getErrorMessage(r)) + "</td>");
+                writer.write("</tr>");
+            }
+            writer.write("</table>");
+            writer.write("</body></html>");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Status display mapping
+    private String statusString(int status) {
+        switch (status) {
+            case ITestResult.SUCCESS: return "Passed";
+            case ITestResult.FAILURE: return "Failed";
+            case ITestResult.SKIP: return "Skipped";
+            default: return "Unknown";
+        }
+    }
+    // HTML escape helper
+    private String esc(String s) {
+        return s == null ? "" : s.replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;");
+    }
+    // Get error message if any
+    private String getErrorMessage(ITestResult r) {
+        Throwable t = r.getThrowable();
+        return t == null ? "" : t.getMessage();
+    }
+}

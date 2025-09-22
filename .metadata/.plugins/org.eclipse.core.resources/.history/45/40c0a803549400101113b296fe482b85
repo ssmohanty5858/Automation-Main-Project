@@ -1,0 +1,101 @@
+package listeners;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.commons.io.FileUtils;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.testng.*;
+import util.Log;
+
+public class ReportingListener implements ITestListener, IInvokedMethodListener {
+
+    @Override
+    public void onStart(ITestContext context) {
+        //Log.info("SUITE", "Start suite: " + context.getSuite().getName());
+    }
+
+    @Override
+    public void onFinish(ITestContext context) {
+        //Log.info("SUITE", "Finish suite: " + context.getSuite().getName());
+    }
+
+    @Override public void onTestStart(ITestResult result) {
+        Reporter.setCurrentTestResult(result); // <-- bind
+        //Log.info("TEST", "Start: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName());
+      }
+
+    @Override public void onTestSuccess(ITestResult result) {
+        Reporter.setCurrentTestResult(result);
+        //Log.info("TEST", "PASS: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName());
+      }
+
+      @Override public void onTestFailure(ITestResult result) {
+        Reporter.setCurrentTestResult(result);
+        Throwable t = result.getThrowable();
+       // Log.fail("TEST", "FAIL: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName(), t);
+      }
+
+      @Override public void onTestSkipped(ITestResult result) {
+        Reporter.setCurrentTestResult(result);
+        //Log.info("TEST", "SKIP: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName());
+      }
+    @Override
+    public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+        if (method.isTestMethod()) {
+            //Log.debug("METHOD", ">> " + methodName(method));
+        }
+    }
+
+    @Override
+    public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+        if (method.isTestMethod()) {
+            //Log.debug("METHOD", "<< " + methodName(method) + " (status=" + status(testResult) + ")");
+        }
+    }
+
+    private String testName(ITestResult r) {
+        return r.getTestClass().getName() + "#" + r.getMethod().getMethodName();
+    }
+
+    private String methodName(IInvokedMethod m) {
+        return m.getTestMethod().getTestClass().getName() + "#" + m.getTestMethod().getMethodName();
+    }
+
+    private String status(ITestResult r) {
+        return switch (r.getStatus()) {
+            case ITestResult.SUCCESS -> "PASS";
+            case ITestResult.FAILURE -> "FAIL";
+            case ITestResult.SKIP -> "SKIP";
+            default -> String.valueOf(r.getStatus());
+        };
+    }
+    
+    private static Map<String, String> screenshotMap = new ConcurrentHashMap<>();
+
+    @Override
+    public void onTestFailure1(ITestResult result) {
+        WebDriver driver = BaseTest.getDriver(); // Assuming BaseTest exposes a static getDriver() method
+        if (driver == null) return;
+
+        String methodName = result.getMethod().getMethodName();
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String screenshotName = methodName + "_" + timestamp + ".png";
+        String screenshotDir = System.getProperty("user.dir") + "/test-output/screenshots/";
+        String screenshotPath = "screenshots/" + screenshotName;
+
+        try {
+            File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+            File destFile = new File(screenshotDir + screenshotName);
+            FileUtils.copyFile(srcFile, destFile);
+            screenshotMap.put(getKey(result), screenshotPath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}

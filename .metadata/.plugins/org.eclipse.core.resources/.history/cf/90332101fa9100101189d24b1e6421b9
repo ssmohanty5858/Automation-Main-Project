@@ -1,0 +1,342 @@
+package util;
+
+import org.testng.*;
+import org.testng.reporters.util.StackTraceTools;
+import org.testng.xml.XmlSuite;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+/**
+ * EmailableReportWithLogs
+ * -----------------------
+ * An emailable-style TestNG reporter that keeps the default layout/summary
+ * but makes the page far more readable and tucks each test's logs/diffs
+ * into a collapsible "Detailed differences" section.
+ *
+ * Drop-in replacement for your previous EmailableReportWithLogs.
+ * No method names changed.
+ */
+public class EmailableReportWithLogs implements IReporter {
+
+    // ---------- Styling (kept minimal; no external assets) ----------
+    private static final String EXTRA_CSS =
+        "<style>" +
+        " html,body{font-family:system-ui,Segoe UI,Arial,sans-serif}" +
+        " body{margin:16px;line-height:1.35}" +
+        " h1,h2,h3{margin:.5rem 0 .35rem}" +
+        " table{border-collapse:collapse;width:100%;margin:8px 0}" +
+        " th,td{border:1px solid #e6e6e6;padding:8px 10px;vertical-align:top}" +
+        " th{background:#f7f7f7}" +
+        " .ok{color:#0a0;font-weight:600}.bad{color:#c00;font-weight:600}" +
+        " .muted{color:#666}" +
+        " .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}" +
+        " .right{text-align:right}" +
+        " .center{text-align:center}" +
+        " .nowrap{white-space:nowrap}" +
+        " /* hide any default top toolbar/links area, if present in your old file */" +
+        " .toolbar,.links,.top-links{display:none}" +
+        " /* collapsible details */" +
+        " details.section{margin:12px 0;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa}" +
+        " details.section>summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}" +
+        " details.section>summary::-webkit-details-marker{display:none}" +
+        " details.section .content{padding:10px 12px}" +
+        " pre{white-space:pre-wrap;word-wrap:break-word;background:#fff;border:1px solid #e5e5e5;padding:10px;border-radius:8px}" +
+        " .miss{background:#ffe3e3}.add{background:#e6ffe6}" +
+        "</style>";
+
+    private static final SimpleDateFormat TS = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    // ---------- IReporter entry point ----------
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory) {
+        Path out = Paths.get(outputDirectory, "emailable-report.html");
+
+        try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+            writeHtmlStart(w, "Automation Test Execution Report");
+            writeHeader(w, suites);
+            for (ISuite suite : suites) {
+                writeSuiteBlock(w, suite);
+            }
+            writeHtmlEnd(w);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ---------- HTML skeleton ----------
+    private void writeHtmlStart(Writer w, String title) throws IOException {
+        w.write("<!doctype html><html><head><meta charset='utf-8'>");
+        w.write("<meta name='viewport' content='width=device-width,initial-scale=1'>");
+        w.write("<title>");
+        w.write(escape(title));
+        w.write("</title>");
+        w.write(EXTRA_CSS);
+        w.write("</head><body>");
+        w.write("<h1>");
+        w.write(escape(title));
+        w.write("</h1>");
+        w.write("<div class='muted'>Generated: ");
+        w.write(escape(TS.format(new Date())));
+        w.write("</div>");
+    }
+
+    private void writeHtmlEnd(Writer w) throws IOException {
+        w.write("</body></html>");
+    }
+
+    // ---------- High-level header summary ----------
+    private void writeHeader(Writer w, List<ISuite> suites) throws IOException {
+        int total = 0, passed = 0, failed = 0, skipped = 0;
+        long totalDuration = 0L;
+
+        for (ISuite suite : suites) {
+            for (ISuiteResult sr : suite.getResults().values()) {
+                ITestContext ctx = sr.getTestContext();
+                total += ctx.getAllTestMethods().length;
+                passed += ctx.getPassedTests().size();
+                failed += ctx.getFailedTests().size();
+                skipped += ctx.getSkippedTests().size();
+                totalDuration += (ctx.getEndDate().getTime() - ctx.getStartDate().getTime());
+            }
+        }
+
+        w.write("<table>");
+        w.write("<tr><th>Total</th><th>Passed</th><th>Failed</th><th>Skipped</th><th>Duration (ms)</th></tr>");
+        w.write("<tr class='center'>");
+        w.write(td(total));
+        w.write(td(passed));
+        w.write(td(failed));
+        w.write(td(skipped));
+        w.write("<td class='right'>" + totalDuration + "</td>");
+        w.write("</tr>");
+        w.write("</table>");
+    }
+
+    // ---------- Per-suite block ----------
+    private void writeSuiteBlock(Writer w, ISuite suite) throws IOException {
+        Map<String, ISuiteResult> results = suite.getResults();
+        if (results == null || results.isEmpty()) return;
+
+        w.write("<h2>Suite: " + escape(suite.getName()) + "</h2>");
+
+        for (ISuiteResult sr : results.values()) {
+            ITestContext ctx = sr.getTestContext();
+
+            w.write("<h3>Test: " + escape(ctx.getName()) + "</h3>");
+            writeTestSummary(w, ctx);
+            writeResultsTable(w, ctx);
+        }
+    }
+
+    // ---------- Per-test summary ----------
+    private void writeTestSummary(Writer w, ITestContext ctx) throws IOException {
+        int total = ctx.getAllTestMethods().length;
+        int passed = ctx.getPassedTests().size();
+        int failed = ctx.getFailedTests().size();
+        int skipped = ctx.getSkippedTests().size();
+        long duration = ctx.getEndDate().getTime() - ctx.getStartDate().getTime();
+
+        w.write("<table>");
+        w.write("<tr><th>Start</th><th>End</th><th>Total</th><th>Passed</th><th>Failed</th><th>Skipped</th><th>Duration (ms)</th></tr>");
+        w.write("<tr class='center'>");
+        w.write(td(TS.format(ctx.getStartDate())));
+        w.write(td(TS.format(ctx.getEndDate())));
+        w.write(td(total));
+        w.write(td(passed));
+        w.write(td(failed));
+        w.write(td(skipped));
+        w.write("<td class='right'>" + duration + "</td>");
+        w.write("</tr>");
+        w.write("</table>");
+    }
+
+    // ---------- Big table with each method result ----------
+    private void writeResultsTable(Writer w, ITestContext ctx) throws IOException {
+        // Collect in chronological order
+        List<ITestResult> all = new ArrayList<>();
+        all.addAll(ctx.getPassedTests().getAllResults());
+        all.addAll(ctx.getFailedTests().getAllResults());
+        all.addAll(ctx.getSkippedTests().getAllResults());
+        all.sort(Comparator.comparingLong(ITestResult::getStartMillis));
+
+        w.write("<table>");
+        w.write("<tr>");
+        w.write("<th>#</th><th>Class</th><th>Method</th><th>Status</th>");
+        w.write("<th>Start</th><th>End</th><th>Duration (ms)</th>");
+        w.write("<th>Logs / Detailed differences</th>");
+        w.write("<th>Error</th>");
+        w.write("</tr>");
+
+        int row = 0;
+        for (ITestResult r : all) {
+            row++;
+            String cls = r.getTestClass().getName();
+            String m = r.getMethod().getMethodName();
+            String status = humanStatus(r.getStatus());
+            String cssStatus = (r.getStatus() == ITestResult.FAILURE) ? "bad" :
+                               (r.getStatus() == ITestResult.SUCCESS ? "ok" : "muted");
+
+            String start = safeTs(r.getStartMillis());
+            String end = safeTs(r.getEndMillis());
+            long dur = Math.max(0, r.getEndMillis() - r.getStartMillis());
+
+            // Build logs/diffs block
+            String logsHtml = buildLogsHtml(r);                 // uses Reporter.log output, attributes, etc.
+            String title = buildDiffTitle(r, logsHtml);         // e.g., "Detailed differences — missing: 3, new: 5"
+            String collapsible = wrapCollapsible(title, logsHtml);
+
+            // Error/stack (failures)
+            String errorHtml = "";
+            if (r.getStatus() == ITestResult.FAILURE && r.getThrowable() != null) {
+                String st = StackTraceTools.getStackTrace(r.getThrowable(), false)[0];
+                errorHtml = "<pre class='mono'>" + esc(st) + "</pre>";
+            }
+
+            w.write("<tr>");
+            w.write(td(row));
+            w.write("<td class='mono'>" + esc(cls) + "</td>");
+            w.write("<td class='mono'>" + esc(m) + "</td>");
+            w.write("<td class='" + cssStatus + "'>" + esc(status) + "</td>");
+            w.write(td(start));
+            w.write(td(end));
+            w.write("<td class='right'>" + dur + "</td>");
+            w.write("<td>" + collapsible + "</td>");
+            w.write("<td>" + (errorHtml.isEmpty() ? "&nbsp;" : errorHtml) + "</td>");
+            w.write("</tr>");
+        }
+
+        w.write("</table>");
+    }
+
+    // ---------- Build “logs / differences” inner HTML ----------
+    private String buildLogsHtml(ITestResult r) {
+        // 1) Anything you did via Reporter.log(...) will appear here:
+        List<String> reporterLines = Reporter.getOutput(r);
+
+        // 2) Your framework may also attach HTML snippets/links into attributes; support some common keys
+        Object html = attr(r, "logsHtml", "htmlLogs", "LOGS_HTML");
+        Object diff = attr(r, "diffHtml", "DIFF_HTML", "comparisonHtml");
+        Object notes = attr(r, "notes", "NOTES");
+
+        StringBuilder sb = new StringBuilder();
+        if (notes != null) {
+            sb.append("<div class='muted'>").append(notes.toString()).append("</div>");
+        }
+
+        if (reporterLines != null && !reporterLines.isEmpty()) {
+            sb.append("<h4>Run log</h4><pre class='mono'>");
+            for (String line : reporterLines) {
+                // Allow raw HTML logs (like <a href='...'>) to pass through if you already wrote them
+                if (looksLikeHtml(line)) sb.append(line);
+                else sb.append(esc(line)).append("\n");
+            }
+            sb.append("</pre>");
+        }
+
+        if (html != null) {
+            sb.append("<h4>Details</h4>");
+            sb.append(html.toString());
+        }
+
+        if (diff != null) {
+            sb.append("<h4 id='diff'>Differences</h4>");
+            sb.append(diff.toString()); // already HTML (e.g., your colored word-level view)
+        }
+
+        if (sb.length() == 0) {
+            // Keep page compact if no logs provided
+            sb.append("<div class='muted'>No additional output</div>");
+        }
+        return sb.toString();
+    }
+
+    /** Small, human title for the <summary> line. You can extend how you compute counts here. */
+    private String buildDiffTitle(ITestResult r, String logsHtml) {
+        // If your test put counts in attributes, use them:
+        Integer missing = asInt(attr(r, "missingCount", "MISSING_COUNT"));
+        Integer added   = asInt(attr(r, "newCount", "ADDED_COUNT"));
+
+        String base = "Detailed differences";
+        if (missing != null || added != null) {
+            return base + " — missing: " + n(missing) + ", new: " + n(added);
+        }
+
+        // Otherwise try to infer from text
+        if (logsHtml != null) {
+            int miss = countToken(logsHtml, "class='miss'");
+            int add  = countToken(logsHtml, "class='add'");
+            if (miss > 0 || add > 0) {
+                return base + " — missing: " + miss + ", new: " + add;
+            }
+        }
+        return base;
+    }
+
+    // ---------- Collapsible wrapper ----------
+    private static String wrapCollapsible(String title, String innerHtml) {
+        String safeTitle = (title == null || title.isBlank()) ? "Detailed differences" : title;
+        return "<details class='section'><summary>" + esc(safeTitle) + " (click to expand/collapse)</summary>"
+             + "<div class='content'>" + (innerHtml == null ? "" : innerHtml) + "</div></details>";
+    }
+
+    // ---------- Utilities ----------
+    private static Object attr(ITestResult r, String... keys) {
+        for (String k : keys) {
+            Object v = r.getAttribute(k);
+            if (v != null) return v;
+        }
+        return null;
+    }
+
+    private static Integer asInt(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number) return ((Number) o).intValue();
+        try { return Integer.parseInt(o.toString().trim()); } catch (Exception ignored) { return null; }
+    }
+
+    private static int countToken(String haystack, String needle) {
+        if (haystack == null || needle == null || needle.isEmpty()) return 0;
+        int i = 0, c = 0;
+        while ((i = haystack.indexOf(needle, i)) >= 0) { c++; i += needle.length(); }
+        return c;
+    }
+
+    private static String td(Object v) {
+        return "<td>" + esc(String.valueOf(v)) + "</td>";
+    }
+
+    private static String escape(String s) { return esc(s); }
+    private static String esc(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static boolean looksLikeHtml(String line) {
+        if (line == null) return false;
+        String t = line.trim();
+        return t.startsWith("<a ") || t.startsWith("<div") || t.startsWith("<span")
+            || t.startsWith("<pre") || t.startsWith("<details") || t.startsWith("<table");
+    }
+
+    private static String humanStatus(int status) {
+        switch (status) {
+            case ITestResult.SUCCESS: return "Passed";
+            case ITestResult.FAILURE: return "Failed";
+            case ITestResult.SKIP:    return "Skipped";
+        }
+        return "Unknown";
+    }
+
+    private static String safeTs(long millis) {
+        if (millis <= 0) return "";
+        return TS.format(new Date(millis));
+    }
+
+    private static String n(Integer x) { return (x == null ? "0" : String.valueOf(x)); }
+}

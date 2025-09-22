@@ -1,0 +1,435 @@
+package util;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.devtools.v139.log.Log;
+import org.openqa.selenium.devtools.v139.network.Network;
+import org.openqa.selenium.devtools.v139.network.model.ResourceType;
+import org.openqa.selenium.devtools.v139.runtime.Runtime;
+import org.openqa.selenium.devtools.v139.runtime.model.RemoteObject;
+import org.openqa.selenium.devtools.v139.runtime.model.StackTrace;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+/** Captures Network & Console and writes:
+ *  - network_api.html with API/UI sections + an API FAILURES section (highlighted)
+ *  - console.html with browser console lines
+ *
+ * PUBLIC API KEPT THE SAME: start(), stop(), getNetworkFile(), getConsoleFile(), record()
+ */
+public final class NetworkConsoleRecorder {
+
+    private final WebDriver driver;
+    private final Path outDir;
+    private final String baseName;
+
+    private DevTools devTools;
+    private boolean active = false;
+
+    private Path networkFile;
+    private Path consoleFile;
+    private BufferedWriter conOut;
+
+    // === aggregation structures for network ===
+    private static final class ReqInfo {
+        long t0;
+        String method;
+        String url;
+        String initiator;           // shortened initiator
+        ResourceType type;          // XHR/Fetch/Script/CSS/Image...
+    }
+    private static final class Row {
+        String method;
+        int status;
+        long sizeBytes;
+        long timeMs;
+        String type;                // Network resource type
+        String initiator;
+        String mime;
+        String url;
+    }
+
+    private final Map<String, ReqInfo> inFlight = new ConcurrentHashMap<>();
+    private final List<Row> apiRows     = new ArrayList<>();
+    private final List<Row> uiRows      = new ArrayList<>();
+    private final List<Row> apiFailRows = new ArrayList<>();   // NEW: failures bucket
+
+    // Keep start time of the recorder to show in header
+    private long startedAt;
+
+    private static final DateTimeFormatter TF =
+            DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+
+    public NetworkConsoleRecorder(WebDriver driver, Path outDir, String baseName) {
+        this.driver = driver;
+        this.outDir = outDir.toAbsolutePath();
+        this.baseName = (baseName == null ? "session" : baseName.replaceAll("[^A-Za-z0-9_-]+", "_"));
+    }
+
+    /** Create files and hook CDP listeners. */
+    public synchronized void start() {
+        startedAt = System.currentTimeMillis();
+
+        try {
+            Files.createDirectories(outDir);
+            networkFile = outDir.resolve(baseName + "_network_api.html");
+            consoleFile = outDir.resolve(baseName + "_console.html");
+
+            // fresh console file
+            conOut = Files.newBufferedWriter(consoleFile, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            writeConsoleHeader();
+
+            if (!(driver instanceof HasDevTools)) {
+                // non-CDP browser: still write empty summary page on stop()
+                active = true;
+                return;
+            }
+
+            devTools = ((HasDevTools) driver).getDevTools();
+            try { devTools.createSession(); } catch (Exception ignored) {}
+
+            devTools.send(Network.enable(Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+            devTools.send(Log.enable());
+
+            // ---- request: put into inFlight with t0, method, url, initiator, type
+            devTools.addListener(Network.requestWillBeSent(), e -> {
+                ReqInfo r = new ReqInfo();
+                r.t0 = System.currentTimeMillis();
+                r.method = safe(e.getRequest().getMethod());
+                r.url = safe(e.getRequest().getUrl());
+                r.initiator = initiatorLabel(e.getInitiator());
+                r.type = e.getType().orElse(ResourceType.OTHER);
+                inFlight.put(String.valueOf(e.getRequestId()), r);
+            });
+
+            // ---- response: complete row and classify (API vs UI) + collect failures
+            devTools.addListener(Network.responseReceived(), e -> {
+                String id = String.valueOf(e.getRequestId());
+                ReqInfo r = inFlight.remove(id);
+                if (r == null) {
+                    // no request event (rare), create minimal one
+                    r = new ReqInfo();
+                    r.t0 = startedAt;
+                    r.method = "";
+                    r.url = safe(e.getResponse().getUrl());
+                    r.initiator = "";
+                    r.type = e.getType();
+                }
+                ResourceType typ = (r.type != null) ? r.type : e.getType();
+
+                Row row = new Row();
+                row.method = r.method;
+                row.status = (int) e.getResponse().getStatus();
+                row.timeMs = Math.max(0, System.currentTimeMillis() - r.t0);
+                row.type = String.valueOf(typ);
+                row.initiator = r.initiator;
+                row.mime = header(e.getResponse().getHeaders(), "content-type");
+                row.sizeBytes = parseLen(header(e.getResponse().getHeaders(), "content-length"));
+                row.url = r.url;
+
+                boolean isApi = (typ == ResourceType.XHR || typ == ResourceType.FETCH);
+                (isApi ? apiRows : uiRows).add(row);
+
+                // NEW: collect HTTP failures (>=400) for API
+                if (isApi && row.status >= 400) {
+                    apiFailRows.add(row);
+                }
+            });
+
+            // ---- NEW: hard failures (DNS, timeout, aborted, blocked)
+            devTools.addListener(Network.loadingFailed(), e -> {
+                String id = String.valueOf(e.getRequestId());
+                ReqInfo r = inFlight.remove(id);
+
+                ResourceType typ = (r != null ? r.type : e.getType());
+
+                Row row = new Row();
+                row.status = 400;                      // mark as network failure
+                row.sizeBytes = -1;
+                row.timeMs = (r == null) ? 0 : Math.max(0, System.currentTimeMillis() - r.t0);
+                row.method = (r == null) ? "" : r.method;
+                row.url    = (r == null) ? "" : r.url;
+                row.type = String.valueOf(typ);
+                row.initiator = (r == null) ? "" : r.initiator;
+                row.mime = "NET_ERR: " + e.getErrorText();
+
+                boolean isApi = (typ == ResourceType.XHR || typ == ResourceType.FETCH);
+                if (isApi) {
+                    apiRows.add(row);       // show in main API table
+                    apiFailRows.add(row);   // and in failures section
+                } else {
+                    uiRows.add(row);
+                }
+            });
+
+            // ---- console output
+            devTools.addListener(Log.entryAdded(), e -> {
+                long now = System.currentTimeMillis();
+                safeAppendConsole(now, String.valueOf(e.getLevel()), e.getText(), String.valueOf(e.getSource()));
+            });
+
+            active = true;
+        } catch (IOException ioe) {
+            closeQuietly();
+            active = false;
+        } catch (Exception e) {
+            closeQuietly();
+            active = false;
+        }
+    }
+
+    /** Render network summary + sections and close console. */
+    public synchronized void stop() {
+        // build the network page at the end (using aggregated rows)
+        try {
+            Files.createDirectories(outDir);
+            String html = renderNetworkPage();
+            Files.writeString(networkFile, html, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+        } catch (Exception ignored) {}
+
+        // close console HTML
+        writeConsoleFooter();
+        closeQuietly();
+        try { if (devTools != null) devTools.close(); } catch (Exception ignored) {}
+        active = false;
+    }
+
+    public Path getNetworkFile() { return networkFile; }
+    public Path getConsoleFile() { return consoleFile; }
+
+    // ========== Console ==========
+
+    private void writeConsoleHeader() throws IOException {
+        conOut.write("""
+            <!doctype html><meta charset='utf-8'><title>Console</title>
+            <style>
+              body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:16px;background:#fafafa}
+              table{width:100%;border-collapse:collapse;background:#fff}
+              th,td{border:1px solid #e6e6e6;padding:6px 8px;font-size:13px;vertical-align:top}
+              th{background:#f3f5f7;text-align:left}
+              .lvl{font-weight:600}
+              .SEVERE{color:#c00}.ERROR{color:#c00}.WARNING{color:#b36b00}
+              .INFO{color:#0a7b34}.DEBUG{color:#555}.LOG{color:#333}
+              .src{color:#888}
+              .err   { color:#dc2626; font-weight:600 }
+        		.warn  { color:#b45309; font-weight:600 }
+        		.info  { color:#0f766e; font-weight:600 }
+        		.stack { margin-top:4px; background:#0b1020; color:#e2e8f0; padding:6px 8px; 
+        		border-radius:6px; white-space:pre-wrap; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace }
+            </style>
+            <h2>Console</h2>
+            <table>
+              <tr><th>Time</th><th>Level</th><th>Message</th><th>Source</th></tr>
+        """);
+        conOut.flush();
+    }
+    private void writeConsoleFooter() {
+        try { if (conOut != null) { conOut.write("</table>"); conOut.flush(); } } catch (Exception ignored) {}
+    }
+    private synchronized void safeAppendConsole(long ts, String level, String msg, String source) {
+        if (conOut == null) return;
+        try {
+            conOut.write("<tr><td>" + TF.format(Instant.ofEpochMilli(ts)) + "</td>");
+            conOut.write("<td class='lvl " + esc(level) + "'>" + esc(level) + "</td>");
+            conOut.write("<td>" + esc(msg) + "</td>");
+            conOut.write("<td class='src'>" + esc(source) + "</td></tr>\n");
+            conOut.flush();
+        } catch (IOException ignored) {}
+    }
+    
+    private synchronized void appendConsoleHtml(long ts, String level, String htmlMsg, String source) {
+        if (conOut == null) return;
+        try {
+            conOut.write("<tr><td>" + TF.format(Instant.ofEpochMilli(ts)) + "</td>");
+            conOut.write("<td class='lvl " + esc(level) + "'>" + esc(level) + "</td>");
+            conOut.write("<td>" + htmlMsg + "</td>");  // html allowed
+            conOut.write("<td class='src'>" + esc(source) + "</td></tr>\n");
+            conOut.flush();
+        } catch (IOException ignored) {}
+    }
+    
+    private static String joinArgs(java.util.List<RemoteObject> args) {
+        if (args == null || args.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < args.size(); i++) {
+            RemoteObject ro = args.get(i);
+            String val = ro.getValue() != null ? String.valueOf(ro.getValue())
+                       : ro.getDescription() != null ? ro.getDescription()
+                       : ro.getUnserializableValue().orElse("");
+            if (i > 0) sb.append(" ");
+            sb.append(esc(val));
+        }
+        return sb.toString();
+    }
+    private static String stackToHtml(java.util.Optional<StackTrace> st) {
+        if (st.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder("<div class='stack'>");
+        try {
+            var frames = st.get().getCallFrames();
+            for (var f : frames) {
+                String fn  = f.getFunctionName();
+                String url = f.getUrl();
+                int ln = f.getLineNumber() + 1;
+                int col = f.getColumnNumber() + 1;
+                sb.append(esc(fn.isEmpty() ? "(anonymous)" : fn))
+                  .append(" @ ").append(esc(shortName(url)))
+                  .append(":").append(ln).append(":").append(col)
+                  .append("\n");
+            }
+        } catch (Exception ignore) {}
+        sb.append("</div>");
+        return sb.toString();
+    }
+
+
+    // ========== Network page rendering ==========
+
+    private static boolean isFailure(Row r) {
+        return r.status >= 400 || r.status < 0;
+    }
+
+    private String renderNetworkPage() {
+        int all = apiRows.size() + uiRows.size();
+        long apiOk  = apiRows.stream().filter(r -> !isFailure(r)).count();
+        long apiErr = apiRows.stream().filter(NetworkConsoleRecorder::isFailure).count();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("""
+            <!doctype html><meta charset='utf-8'><title>Network / API calls</title>
+            <style>
+              body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:16px;background:#fafafa}
+              pre{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:12px;
+                  white-space:pre-wrap;word-break:break-word}
+              h2{margin:.2rem 0 0.6rem}
+              .muted{color:#777}
+              .sec{margin-top:18px}
+              .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+              .hdr{background:#f3f5f7;border:1px solid #e6e6e6;border-radius:8px;padding:8px 12px;margin-bottom:8px}
+              .kpi{display:inline-block;background:#fff;border:1px solid #e6e6e6;border-radius:8px;
+                   padding:8px 12px;margin-right:8px;margin-bottom:8px}
+              table{width:100%;border-collapse:collapse;background:#fff}
+              th,td{border:1px solid #e6e6e6;padding:6px 8px;font-size:13px;vertical-align:top}
+              th{background:#f3f5f7;text-align:left}
+              /* highlight failing rows */
+              tr.bad{background:#fff2f2}
+              tr.bad td{color:#c00;font-weight:600}
+            </style>
+            <h2>Network / API calls</h2>
+        """);
+
+        // KPIs
+        sb.append("<div class='hdr'>")
+          .append("<span class='kpi'>Started at: ").append(esc(TF.format(Instant.ofEpochMilli(startedAt)))).append("</span>")
+          .append("<span class='kpi'>Total Calls: ").append(all).append("</span>")
+          .append("<span class='kpi'>Passed API : ").append(apiOk).append("</span>")
+          .append("<span class='kpi'>Failed API : ").append(apiErr).append("</span>")
+          .append("</div>");
+
+        // section helper with red rows for failures
+        java.util.function.BiConsumer<String, List<Row>> section =
+            (title, list) -> {
+                sb.append("<div class='sec'>")
+                  .append("<div class='hdr mono'><b>").append(esc(title)).append("</b></div>")
+                  .append("<table class='mono'><tr>")
+                  .append("<th>METHOD</th><th>STATUS</th><th>SIZE(B)</th><th>TIME(ms)</th>")
+                  .append("<th>TYPE</th><th>INITIATOR</th><th>MIME</th><th>URL</th></tr>");
+                for (Row r : list) {
+                    String trCls = isFailure(r) ? " class='bad'" : "";
+                    sb.append("<tr").append(trCls).append(">")
+                      .append("<td>").append(esc(r.method)).append("</td>")
+                      .append("<td>").append(r.status).append("</td>")
+                      .append("<td>").append(r.sizeBytes <= 0 ? "-" : String.valueOf(r.sizeBytes)).append("</td>")
+                      .append("<td>").append(r.timeMs).append("</td>")
+                      .append("<td>").append(esc(r.type)).append("</td>")
+                      .append("<td>").append(esc(r.initiator)).append("</td>")
+                      .append("<td>").append(esc(r.mime)).append("</td>")
+                      .append("<td>").append(esc(r.url)).append("</td>")
+                      .append("</tr>");
+                }
+                sb.append("</table></div>");
+            };
+
+        section.accept("-- API CALLS (Network) ----------------------------------------", apiRows);
+        section.accept("-- UI CALLS (Network) -----------------------------------------", uiRows);
+        section.accept("-- API FAILURES (Network) -------------------------------------", apiFailRows);
+
+        return sb.toString();
+    }
+
+    // ========== utilities ==========
+
+    private static String header(Map<String, Object> headers, String keyLower) {
+        if (headers == null) return "";
+        for (Map.Entry<String, Object> e : headers.entrySet()) {
+            if (e.getKey() != null && e.getKey().equalsIgnoreCase(keyLower)) {
+                return String.valueOf(e.getValue());
+            }
+        }
+        return "";
+    }
+    private static long parseLen(String s) {
+        try { return (s == null || s.isBlank()) ? -1 : Long.parseLong(s.trim()); }
+        catch (Exception ignore) { return -1; }
+    }
+    // robust initiator label across CDP versions
+    private static String initiatorLabel(org.openqa.selenium.devtools.v139.network.model.Initiator init) {
+        if (init == null) return "";
+        // Try stacktrace via reflection (works across minor version differences)
+        try {
+            Object optObj = init.getClass().getMethod("getStackTrace").invoke(init);
+            if (optObj instanceof Optional<?> opt && opt.isPresent()) {
+                Object stack = opt.get();
+                Object framesObj = stack.getClass().getMethod("getCallFrames").invoke(stack);
+                if (framesObj instanceof java.util.List<?> frames && !frames.isEmpty()) {
+                    Object cf = frames.get(0);
+                    String url = String.valueOf(cf.getClass().getMethod("getUrl").invoke(cf));
+                    Object ln  = cf.getClass().getMethod("getLineNumber").invoke(cf);
+                    int line = (ln instanceof Number n) ? n.intValue() : 0;
+                    return shortName(url) + ":" + (line + 1);
+                }
+            }
+        } catch (Throwable ignore) { }
+        // Fallback to initiator url if available
+        try {
+            Object urlOpt = init.getClass().getMethod("getUrl").invoke(init);
+            if (urlOpt instanceof Optional<?> ou && ou.isPresent()) {
+                return shortName(String.valueOf(ou.get()));
+            }
+        } catch (Throwable ignore) { }
+        // Fallback to type
+        try { return String.valueOf(init.getClass().getMethod("getType").invoke(init)); }
+        catch (Throwable ignore) { return ""; }
+    }
+    private static String shortName(String url) {
+        if (url == null) return "";
+        int q = url.indexOf('?'); if (q >= 0) url = url.substring(0, q);
+        int h = url.lastIndexOf('#'); if (h >= 0) url = url.substring(0, h);
+        int s = Math.max(url.lastIndexOf('/'), url.lastIndexOf('\\'));
+        return (s >= 0) ? url.substring(s + 1) : url;
+    }
+    private static String esc(String s) {
+        if (s == null) return "";
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    }
+    private static String safe(String s){ return s == null ? "" : s; }
+
+    private void closeQuietly() {
+        try { if (conOut != null) conOut.close(); } catch (Exception ignored) {}
+    }
+
+    // Optional helper to annotate runs; kept to preserve the method name
+    public void record(String label, Runnable action) {
+        if (action == null) return;
+        action.run();
+    }
+}

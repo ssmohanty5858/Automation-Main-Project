@@ -1,0 +1,118 @@
+// Test/baseTest.java
+package Test;
+
+import org.openqa.selenium.*;
+import util.Log;
+import util.NetworkConsoleRecorder;
+
+import org.openqa.selenium.support.ui.*;
+import org.testng.ITestResult;
+import org.testng.annotations.*;
+import java.lang.reflect.Method;
+
+import java.io.IOException;
+import java.time.Duration;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+public class baseTest extends baseCred {
+  protected WebDriver driver;
+  protected WebDriverWait wait;
+  protected NetworkConsoleRecorder recorder;
+
+  /** True only if this class actually started the driver. */
+  private boolean startedHere = false;
+
+  // ========== NEW: initialize baseUrl/creds if not injected ==========
+  @Parameters({ "baseUrl", "username", "password" })
+  @BeforeClass(alwaysRun = true)
+  public void initCreds(
+      @Optional("https://example.test/") String baseUrl,
+      @Optional("user") String username,
+      @Optional("pass") String password) {
+
+    // populate inherited fields from baseCred
+    this.baseUrl  = baseUrl;
+    this.username = username;
+    this.password = password;
+  }
+
+  @BeforeClass(alwaysRun = true, dependsOnMethods = "initCreds")
+  public void setupClass() throws IOException {
+    Log.info("SETUP", "Starting WebDriver if needed");
+    if (DriverManager.get() == null) {
+      DriverManager.start();
+      startedHere = true;
+    }
+    driver = DriverManager.get();
+
+    driver.manage().timeouts().implicitlyWait(Duration.ZERO);
+    try { driver.manage().window().setSize(new Dimension(1920,1080)); } catch (Exception ignored){}
+
+    wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+    Log.info("SETUP", "Driver ready. URL=" + safeUrl());
+
+    String ts = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+            .format(LocalDateTime.now());
+    Path classLog = Paths.get("logs", getClass().getSimpleName() + "_" + ts + ".html");
+    Files.createDirectories(classLog.getParent());
+
+    recorder = new util.NetworkConsoleRecorder(driver, classLog);
+    recorder.setNetworkFilter(e -> true);
+    recorder.setSettleMillis(2500);
+
+    // Make this recorder available to Log.section()/capture() in this thread
+    util.Log.setRecorder(recorder);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void teardownClass() throws IOException {
+    if (startedHere) {
+      DriverManager.stop();
+    }
+    driver = null;
+  }
+
+  @BeforeMethod(alwaysRun = true)
+  public void beforeEach(Method method) {
+    util.Log.beginTest(method);
+
+    try {
+      String ts = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now());
+      String className = method.getDeclaringClass().getSimpleName();
+      String testName  = method.getName();
+      Path logFile = Paths.get("logs", className + "_" + testName + "_" + ts + ".txt");
+      Files.createDirectories(logFile.getParent());
+
+      util.Log.info("SETUP", "Network/Console log: " + logFile.toAbsolutePath());
+    } catch (Exception e) {
+      util.Log.error("SETUP", "Failed to initialize NetworkConsoleRecorder", e);
+    }
+  }
+
+  @AfterMethod(alwaysRun = true)
+  public void afterEach(ITestResult result) {
+    if (result.getThrowable() != null) {
+      util.Log.error("TEST",
+          "Failure: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName(),
+          result.getThrowable());
+    } else {
+      util.Log.pass("TEST",
+          "PASS: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName());
+    }
+    util.Log.endTest();
+  }
+
+  // helper to avoid NPE in log when driver has no URL yet
+  private String safeUrl() {
+    try {
+      return (driver != null) ? driver.getCurrentUrl() : "(no driver)";
+    } catch (Exception e) {
+      return "(not navigated)";
+    }
+  }
+}

@@ -1,0 +1,500 @@
+package POM;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.Select;
+
+public class Survey 
+{
+	static String parentWindow;
+	WebDriver driver;
+	public String childWindowName;
+	public String newWindowTitle;
+
+	int rdmnumber=(int)(Math.random()*1000);
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+
+	@FindBy(xpath = "(//div[@routerlinkactive='active'])[5]")
+	private WebElement quotestab;
+
+	@FindBy(xpath = "(//button[@class='nav-link subtitle-2'])[1]")
+	private WebElement wonclassification;
+
+	@FindBy(xpath = "(//div[@class='cursor-pointer rotate'])[2]")
+	private WebElement quoteactionbutton;
+
+	@FindBy(xpath = "//a[.='Request Survey']")
+	private WebElement requestforsurveybutton;
+
+	@FindBy(xpath = "//input[@id='Surveyor name']")
+	private WebElement surveyordd1;
+	
+	@FindBy(xpath="//a[@class='dropdown-item c-pointer text-wrap']")
+	private List<WebElement> surveyornames;
+	
+	@FindBy(xpath="(//input[@type='text'])[2]")
+	private WebElement surveyexternalcode;
+	
+	@FindBy(xpath="//textarea[@placeholder='Survey remark']")
+	private WebElement surveyappointmentremark;
+
+	@FindBy(xpath = "(//input[@class='form-check-input'])[3]")
+	private WebElement visibletosurveyorcheckbox;
+
+	@FindBy(xpath = "//button[contains(text(),'Request survey')]")
+	private WebElement requestsurvey;
+
+	@FindBy(xpath = "(//button[contains(text(),'Accept')])[1]")
+	private WebElement acceptbutton;
+
+	@FindBy(xpath = "//button[.='Yes']")
+	private WebElement yesbutton;
+
+	@FindBy(xpath = "(//a[@placement='bottom'])[3]")
+	private WebElement apps;
+
+	@FindBy(xpath = "(//div[@class='icon'])[3]")
+	private WebElement surveyicon;
+
+	@FindBy(xpath = "//a[contains(text(),'Approved')]")
+	private WebElement Approved;
+
+	@FindBy(xpath = "(//div[@class='hovr-area'])[9]")
+	private WebElement surveyactionbutton;
+
+	@FindBy(xpath = "(//a[.='Download won quote'])[9]")
+	private WebElement downloadwonquotebutton;
+
+	@FindBy(xpath = "(//a[.='Modify surveyor'])[1]")
+	private WebElement modifysurveyor;
+
+	@FindBy(xpath = "//select[@formcontrolname='surveyorsId']")
+	private WebElement surveyordd2;
+
+	@FindBy(xpath = "//button[.='Add']")
+	private WebElement addbutton;
+
+	@FindBy(xpath = "(//button[contains(text(),'View')])[1]")
+	private WebElement viewbutton1;
+
+	@FindBy(xpath = "//span[.='Checklist']")
+	private WebElement checklisttab;
+
+	@FindBy(xpath = "//button[.='Save default']")
+	private WebElement savedefaultbutton;
+
+	@FindBy(xpath = "//span[.='Post survey']")
+	private WebElement postsurveytab;
+
+	@FindBy(xpath = "//button[contains(text(),'Add sales order')]")
+	private WebElement addsalesorderbutton;
+
+	@FindBy(xpath = "//input[@formcontrolname='workOrderDescription']")
+	private WebElement remarktextareafield;
+
+	@FindBy(xpath = "(//div[@class='hovr-area d-inline-block'])[1]")
+	private WebElement postsurveyactionbutton;
+
+	@FindBy(xpath = "//a[.='Commit']")
+	private WebElement commitbutton;
+
+	@FindBy(xpath = "//span[.='Start survey']")
+	private WebElement startsurveylink;
+
+	@FindBy(xpath = "(//span[.='Start survey'])[1]")
+	private WebElement startsurveylink2;
+
+	@FindBy(xpath = "(//span[.='Start survey'])[3]")
+	private WebElement startsurveylink3;
+
+	@FindBy(xpath = "//button[@tooltip='Complete survey']")
+	private WebElement completesurveybutton;
+	
+	@FindBy(xpath="//button[.='View']")
+	private WebElement postsurveyviewbutton;
+	
+	@FindBy(xpath="//input[@id='activeAll']")
+	private WebElement multicheckbox;
+	
+	@FindBy(xpath="//button[.='Allocate']")
+	private WebElement allocatebutton;
+	
+	@FindBy(xpath="//a[.='Post survey']")
+	private WebElement postsurveybutton;
+
+	@FindBy(xpath = "//input[@placeholder='Search...']")
+	private WebElement searchbartextfield;
+
+	@FindBy(xpath = "//li[@class='active']")
+	private WebElement salesordersummary;
+
+	@FindBy(xpath = "//span[@tooltip='Sort']")
+	private WebElement sortbutton;
+	
+	@FindBy(xpath="//a[.='Created date time - Z to A']")
+	private WebElement createddatetimeztoa;
+	
+	@FindBy(xpath="//a[contains(text(),'Date created: Old to New')]")
+	private WebElement oldtonew;
+	
+	@FindBy(xpath="//a[contains(text(),'Date created: New to Old')]")
+	private WebElement newtoold;
+	
+	@FindBy(xpath="//a[contains(text(),'Opportunity name: New to Old')]")
+	private WebElement oppnameatoz;
+	
+	@FindBy(xpath="//a[contains(text(),'Revision: Low to High')]")
+	private WebElement revisionlowtohigh;
+	
+	@FindBy(xpath="(//input[@placeholder='Search...'])[16]")
+	private WebElement searchbarquotes;
+	
+	public Survey(WebDriver driver) 
+	{
+		this.driver = driver;
+		PageFactory.initElements(driver, this);
+	}
+
+	public void surveymodule() throws InterruptedException
+	{
+		quotestab.click();
+		
+		wonclassification.click();
+		
+		//searchbarquotes.sendKeys("SSM Automation469 Dec 16 2023");
+
+		//searchbarquotes.sendKeys(Keys.ENTER);
+	
+		quoteactionbutton.click();
+	
+		parentWindow = driver.getWindowHandle();
+		requestforsurveybutton.click();
+
+		Set<String> windowId = driver.getWindowHandles();
+		Iterator<String> it = windowId.iterator();
+		while (it.hasNext()) 
+		{
+			childWindowName = it.next();
+			if (parentWindow != childWindowName)
+			{
+				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+				System.out.println(newWindowTitle);
+			}
+		}
+////	
+		surveyordd1.click();
+//		Select sel = new Select(surveyordd1);
+//		sel.selectByVisibleText("Gourav Singhal");
+//		Thread.sleep(2000);
+		
+
+	}
+	 public List<String> surveyornames() 
+	 {
+	        
+		// WebDriverWait wait=new WebDriverWait(driver, 10);
+		 List<String> options=new ArrayList<>();
+			
+			
+			for (WebElement option : surveyornames) 
+			{
+				if (option.getText().equals("Santanu Kundu")) 
+	            {
+	                option.click();
+	                break;  // Exit loop once the desired option is clicked
+	            }
+				
+	        
+	        }
+			 return options;
+			 
+	 }
+	 
+	 public void requestSurvey()
+	 {
+		surveyexternalcode.sendKeys("Survey Ext Code"+rdmnumber);
+		surveyappointmentremark.sendKeys("Survey Appointment Remark"+formattedDate);
+		requestsurvey.click();
+	 }
+
+	public void dropdown() throws InterruptedException 
+	{
+		
+		apps.click();
+		Thread.sleep(1000);
+		parentWindow = driver.getWindowHandle();
+		surveyicon.click();
+	
+		Set<String> windowId = driver.getWindowHandles();
+		Iterator<String> it = windowId.iterator();
+		while (it.hasNext()) {
+			childWindowName = it.next();
+			if (parentWindow != childWindowName) 
+			{
+				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+				System.out.println(newWindowTitle);
+			}
+		}
+
+		acceptbutton.click();
+		Thread.sleep(2000);
+		yesbutton.click();
+		Thread.sleep(3000);
+		Approved.click();
+		Thread.sleep(1000);
+		surveyactionbutton.click();
+	
+		downloadwonquotebutton.click();
+//		Thread.sleep(5000);
+//		sortbutton.click();
+//		
+//		createddatetimeztoa.click();
+//		
+//		sortbutton.click();
+//	
+//		createddatetimeztoa.click();
+//	
+//		sortbutton.click();
+//		
+//		oppnameatoz.click();
+	}
+
+	@FindBy(xpath="//span[@ngbtooltip='Refresh']")
+	private WebElement refreshicon;
+	
+	public void view() throws InterruptedException 
+	{
+		
+//		apps.click();
+//		
+//		parentWindow = driver.getWindowHandle();
+//		surveyicon.click();
+//	
+//		Set<String> windowId = driver.getWindowHandles();
+//		Iterator<String> it = windowId.iterator();
+//		while (it.hasNext()) {
+//			childWindowName = it.next();
+//			if (parentWindow != childWindowName) 
+//			{
+//				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+//				System.out.println(newWindowTitle);
+//			}
+//		}
+//		
+//		Thread.sleep(5000);
+//		ongoing.click();		
+		
+		//refreshicon.click();
+		Thread.sleep(2000);
+		surveyactionbutton.click();
+		
+		viewbutton1.click();
+		
+		startsurveylink.click();
+		Thread.sleep(5000);
+		completesurveybutton.click();
+		Thread.sleep(5000);
+		checklisttab.click();
+	
+		savedefaultbutton.click();
+		Thread.sleep(5000);
+		postsurveytab.click();
+		Thread.sleep(2000);
+		addsalesorderbutton.click();
+	
+		remarktextareafield.sendKeys("Automation Test" + formattedDate);
+	
+		addbutton.click();
+	
+		postsurveyviewbutton.click();
+		Thread.sleep(3000);
+		multicheckbox.click();
+	
+		allocatebutton.click();
+		
+		postsurveybutton.click();
+		Thread.sleep(2000);
+		postsurveyactionbutton.click();
+
+		commitbutton.click();
+		Thread.sleep(2000);
+		yesbutton.click();
+	}
+	
+	@FindBy(xpath="(//li[@class='nav-item'])[5]")
+	private WebElement reportstab;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[1]")
+	private WebElement elevationreportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[2]")
+	private WebElement basicdimensionreportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[3]")
+	private WebElement profileboqreportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[4]")
+	private WebElement reinforcementboqreportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[5]")
+	private WebElement accessoriesboqreportdownload;
+	
+	@FindBy(xpath="(//span[@ngbtooltip='Download'])[6]")
+	private WebElement glassboqreportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[7]")
+	private WebElement cuttingschedulereportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[8]")
+	private WebElement designassemblyreportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[9]")
+	private WebElement reinforcementcuttingscedulereportdownload;
+	
+	@FindBy(xpath="(//span[@tooltip='Download'])[10]")
+	private WebElement installationreportdownload;
+	
+	public void reportdownload() throws InterruptedException
+	{
+		reportstab.click();
+	
+		elevationreportdownload.click();
+	
+		basicdimensionreportdownload.click();
+		
+		profileboqreportdownload.click();
+		
+		reinforcementboqreportdownload.click();
+		
+		accessoriesboqreportdownload.click();
+	
+		glassboqreportdownload.click();
+	
+		cuttingschedulereportdownload.click();
+		
+		designassemblyreportdownload.click();
+		
+		reinforcementcuttingscedulereportdownload.click();
+		
+		installationreportdownload.click();
+	}
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[1]")
+	private WebElement viewelevationreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[2]")
+	private WebElement viewbasicdimensionsreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[3]")
+	private WebElement viewprofileboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[4]")
+	private WebElement viewreinforcementboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[5]")
+	private WebElement viewaccessoriesboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[6]")
+	private WebElement viewglassboqreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[7]")
+	private WebElement viewcuttingschedulereport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[8]")
+	private WebElement viewdesignassemblyreport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[9]")
+	private WebElement viewreinforcementcuttingschedulereport;
+	
+	@FindBy(xpath="(//span[@tooltip='View report'])[10]")
+	private WebElement viewinstallationreport;
+	
+	public void viewreport() throws InterruptedException
+	{
+		reportstab.click();
+	
+		viewelevationreport.click();
+	
+		viewbasicdimensionsreport.click();
+		
+		viewprofileboqreport.click();
+		
+		viewreinforcementboqreport.click();
+		
+		viewaccessoriesboqreport.click();
+		
+		viewglassboqreport.click();
+	
+		viewcuttingschedulereport.click();
+		Thread.sleep(3000);
+		viewdesignassemblyreport.click();
+		
+		viewreinforcementcuttingschedulereport.click();	
+	}
+	
+	@FindBy(xpath="(//li[@class='nav-item'])[2]")
+	private WebElement presurveytab;
+	
+	@FindBy(xpath="//button[.='Add location']")
+	private WebElement addlocationtab;
+	
+	@FindBy(xpath="//select[@formcontrolname='siteLayoutTypeId']")
+	private WebElement locationtypedd;
+	
+	@FindBy(xpath="//input[@formcontrolname='location']")
+	private WebElement locationtextfield;
+	
+	@FindBy(xpath="//button[@class='close']")
+	private WebElement closebutton;
+	
+	public void presurvey() throws InterruptedException
+	{
+		
+//		apps.click();
+//		Thread.sleep(3000);
+//		parentWindow = driver.getWindowHandle();
+//		surveyicon.click();
+//		Thread.sleep(3000);
+//		Set<String> windowId = driver.getWindowHandles();
+//		Iterator<String> it = windowId.iterator();
+//		while (it.hasNext()) {
+//			childWindowName = it.next();
+//			if (parentWindow != childWindowName) 
+//			{
+//				newWindowTitle = driver.switchTo().window(childWindowName).getTitle();
+//				System.out.println(newWindowTitle);
+//			}
+//		}
+//
+//		ongoing.click();
+//		Thread.sleep(3000);
+//		viewbutton1.click();
+//		Thread.sleep(3000);
+		presurveytab.click();
+	
+		addlocationtab.click();
+		Thread.sleep(3000);
+		closebutton.click();
+		Thread.sleep(5000);
+		addlocationtab.click();
+		Thread.sleep(2000);
+		locationtypedd.click();
+		Select sel=new Select(locationtypedd);
+		sel.selectByVisibleText("Balcony");
+	
+		locationtextfield.sendKeys("Automation Test"+ rdmnumber+ formattedDate);
+	
+		addbutton.click();
+	}
+
+}

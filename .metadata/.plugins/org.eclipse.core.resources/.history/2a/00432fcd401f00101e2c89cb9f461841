@@ -1,0 +1,8 @@
+package AutoConstant;
+
+public interface constantInput 
+{
+	String URl= "https://techidea.evaerp.cloud/";
+	String userName="EvAadmin";
+	String Password= "EvA@12345";
+}

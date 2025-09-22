@@ -1,0 +1,139 @@
+// Test/baseTest.java
+package Test;
+
+import org.openqa.selenium.*;
+import util.Log;
+import org.openqa.selenium.support.ui.*;
+import org.testng.ITestResult;
+import org.testng.Reporter;
+import org.testng.annotations.*;
+import java.lang.reflect.Method;
+import java.io.File;
+import java.io.IOException;
+import java.time.Duration;
+
+// ADDED
+//import util.NetworkConsoleRecorder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.sql.Date;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+public class baseTest extends baseCred {
+  protected WebDriver driver;
+  protected WebDriverWait wait;
+  
+
+  /** True only if this class actually started the driver. */
+  private boolean startedHere = false;
+
+  // ADDED: expose recorder to tests & POMs
+//  protected NetworkConsoleRecorder recorder;
+  @BeforeSuite(alwaysRun = true)
+  public void allowHtmlInReporter() {
+    Reporter.setEscapeHtml(false); // let <a> render as a link
+  }
+  @BeforeClass(alwaysRun = true)
+  public void setupClass() {
+	    if (baseUrl == null || baseUrl.isBlank()) baseUrl = getBaseUrlOrParam();
+	    if (username == null || username.isBlank()) username = getUsernameOrParam();
+	    if (password == null || password.isBlank()) password = getPasswordOrParam();
+    Log.info("SETUP", "Starting WebDriver if needed");
+    if (DriverManager.get() == null) {
+      DriverManager.start();
+      startedHere = true;
+    }
+    driver = DriverManager.get();
+
+    driver.manage().timeouts().implicitlyWait(Duration.ZERO);
+    try { driver.manage().window().setSize(new Dimension(1920,1080)); } catch (Exception ignored){}
+
+    wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+    Log.info("SETUP", "Driver ready. URL=" + driver.getCurrentUrl());
+
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void teardownClass() throws IOException {
+    // Only stop if we started it here; avoids churn/2nd window in other classes
+    if (startedHere) {
+      // System.in.read();
+      DriverManager.stop();
+    }
+    driver = null;
+    // ADDED: let GC collect; nothing to close explicitly
+//    recorder = null;
+  }
+
+  @BeforeMethod(alwaysRun = true)
+  public void beforeEach(Method method) {
+    // method is always available before invocation
+    util.Log.beginTest(method);
+
+    // ADDED: create a fresh, timestamped log file per test method
+    try {
+      String ts = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now());
+      String className = method.getDeclaringClass().getSimpleName();
+      String testName  = method.getName();
+      Path logFile = Paths.get("logs", className + "_" + testName + "_" + ts + ".txt");
+      Files.createDirectories(logFile.getParent());
+
+      // ADDED: initialize recorder for this test
+//      recorder = new NetworkConsoleRecorder(driver, logFile);
+//      recorder.setSettleMillis(1200);
+      // Optional: narrow to your API host while keeping XHR/Fetch
+      // recorder.setNetworkFilter(e -> (("XHR".equalsIgnoreCase(e.resourceType) || "Fetch".equalsIgnoreCase(e.resourceType))
+      //                                 && e.url != null && e.url.contains("api.yourcompany.com")));
+      util.Log.startNetworkRecorder(driver, getClass().getSimpleName());
+    } catch (Exception e) {
+      util.Log.error("SETUP", "Failed to initialize NetworkConsoleRecorder", e);
+    }
+  }
+
+  @AfterMethod(alwaysRun = true)
+  public void afterEach(ITestResult result) {
+    if (result.getThrowable() != null) {
+      util.Log.error("TEST",
+          "Failure: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName(),
+          result.getThrowable());
+    } else {
+      util.Log.pass("TEST",
+          "PASS: " + result.getTestClass().getName() + "#" + result.getMethod().getMethodName());
+    }
+    util.Log.stopNetworkRecorder();
+    util.Log.endTest();
+
+    // ADDED: optional — drop reference after each test
+//    recorder = null;
+  }
+  public void attachPerTestHtml(ITestResult result) {
+	    // === Decide where your artifact lives ===
+	    // If your tool already produces the HTML, point to it directly.
+	    // Below is a safe default pattern under test-output/artifacts/...
+	    String cls = result.getTestClass().getRealClass().getSimpleName();
+	    String mth = result.getMethod().getMethodName();
+	    String ts  = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date(result.getEndMillis()));
+
+	    Path outRoot = Paths.get(System.getProperty("testng.report.output", "test-output")).toAbsolutePath();
+	    Path html = outRoot.resolve("artifacts")
+	                       .resolve(cls)
+	                       .resolve(mth + "_" + ts)
+	                       .resolve(cls + "." + mth + "_" + ts + ".html");
+
+	    // If your recorder writes somewhere else, just replace `html` with that path.
+
+	    if (Files.exists(html)) {
+	      Path rel = outRoot.relativize(html.toAbsolutePath());
+	      String href = rel.toString().replace(File.separatorChar, '/');
+	      Reporter.log("<div>🔗 <a target='_blank' href='" + href + "'>Open API/UI log</a></div>", true);
+	    } else {
+	      // Optional: show where we looked (helps while wiring paths)
+	      Reporter.log("ℹ No HTML artifact found at: " + html, true);
+	    }
+	  }
+  
+  
+}

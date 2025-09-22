@@ -1,0 +1,149 @@
+package util;
+
+import org.testng.IReporter;
+import org.testng.ISuite;
+import org.testng.ISuiteResult;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.xml.XmlSuite;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
+
+public class EmailableReportWithFailures implements IReporter {
+    @Override
+    public void generateReport(List<XmlSuite> xmlSuites, List<ISuite> suites, String outputDirectory,) {
+        String suiteName = suites.size() > 0 ? suites.get(0).getName() : "Suite";
+        String loginUser = extractLoginUser(suites);
+
+        List<ITestResult> failedResults = new ArrayList<>();
+        Date suiteStart = null, suiteEnd = null;
+        int total = 0;
+        long totalDuration = 0;
+
+        for (ISuite suite : suites) {
+            for (ISuiteResult result : suite.getResults().values()) {
+                ITestContext context = result.getTestContext();
+                // collect failed only
+                for (ITestResult r : context.getFailedTests().getAllResults()) {
+                    failedResults.add(r);
+                    total++;
+                    totalDuration += (r.getEndMillis() - r.getStartMillis());
+
+                    Date start = new Date(r.getStartMillis());
+                    Date end = new Date(r.getEndMillis());
+                    if (suiteStart == null || start.before(suiteStart)) suiteStart = start;
+                    if (suiteEnd == null || end.after(suiteEnd)) suiteEnd = end;
+                }
+            }
+        }
+
+        if (failedResults.isEmpty()) return; // No failures, no report
+
+        try (BufferedWriter w = new BufferedWriter(new FileWriter(outputDirectory + "/failure-report.html"))) {
+            // Report Header and Cards
+            w.write("<html><head><title>Automation Test Failure Report</title>");
+            w.write("<meta charset='utf-8' /><style>");
+            w.write("body{font-family:Segoe UI,system-ui,Arial,sans-serif;margin:18px;color:#0f172a;background:#fafafa;}");
+            w.write(".kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:10px 0 18px;}");
+            w.write(".card{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:12px;text-align:center;}");
+            w.write(".num{font-weight:700;font-size:20px;}");
+            w.write(".bad-b{background:#fef2f2;border-color:#fecaca;}");
+            w.write("table{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.04);}");
+            w.write("th,td{border:1px solid #e6e6e6;padding:10px;vertical-align:top;font-size:14px;}");
+            w.write("th{background:#f4f6f8;text-transform:uppercase;font-size:12px;letter-spacing:.04em;color:#334155;}");
+            w.write(".muted{color:#64748b;}");
+            w.write(".collapsible{background:#f1f5f9;border:1px solid #e5e7eb;border-radius:6px;padding:6px;cursor:pointer;}");
+            w.write(".collapsible:after{content:'▼';font-size:10px;float:right;}");
+            w.write(".content{padding:8px 10px;border-top:1px dashed #e5e7eb;display:none;}");
+            w.write("tr:nth-child(even){background:#f9f9f9;}");
+            w.write("</style>");
+            w.write("<script>function toggle(id){var el=document.getElementById(id);el.style.display=el.style.display=='block'?'none':'block';}</script>");
+            w.write("</head><body>");
+
+            w.write("<h1>Automation Test Failure Report</h1>");
+            w.write("<div class='muted'>Generated: " + new Date() + "</div>");
+            w.write("<h2>Suite: " + suiteName + "</h2>");
+
+            // Stats cards
+            w.write("<div class='kpi'>");
+            w.write("<div class='card num bad-b'>Failed<br>" + failedResults.size() + "</div>");
+            w.write("<div class='card num'>Total<br>" + total + "</div>");
+            w.write("<div class='card'>Duration (ms)<br>" + totalDuration + "</div>");
+            w.write("</div>");
+
+            w.write("<div style='margin:15px 0;'>Test User: <b>" + esc(loginUser) + "</b></div>");
+            w.write("<div class='kpi'>");
+            w.write("<div class='card'>Start<br>" + (suiteStart != null ? suiteStart : "-") + "</div>");
+            w.write("<div class='card'>End<br>" + (suiteEnd != null ? suiteEnd : "-") + "</div>");
+            w.write("</div>");
+
+            // Table header
+            w.write("<table><thead><tr>");
+            w.write("<th>#</th><th>Class</th><th>Method</th><th>Status</th><th>Start</th><th>End</th><th>Duration (ms)</th><th>Logs</th><th>Error</th>");
+            w.write("</tr></thead><tbody>");
+
+            int idx = 1;
+            for (ITestResult r : failedResults) {
+                String logsId = "logs" + idx;
+                String errorId = "err" + idx;
+                w.write("<tr>");
+                w.write("<td>" + idx + "</td>");
+                w.write("<td>" + esc(r.getTestClass().getName()) + "</td>");
+                w.write("<td>" + esc(r.getMethod().getMethodName()) + "</td>");
+                w.write("<td style='color:red;font-weight:bold;'>Failed</td>");
+                w.write("<td>" + new Date(r.getStartMillis()) + "</td>");
+                w.write("<td>" + new Date(r.getEndMillis()) + "</td>");
+                w.write("<td>" + (r.getEndMillis() - r.getStartMillis()) + "</td>");
+                // Logs (collapsible)
+                w.write("<td><div class='collapsible' onclick='toggle(\"" + logsId + "\")'>Logs(click to expand/collapse)</div>");
+                w.write("<div class='content' id='" + logsId + "'>" + esc(getLogs(r)) + "</div></td>");
+                // Error (collapsible)
+                w.write("<td><div class='collapsible bad-b' onclick='toggle(\"" + errorId + "\")'>View error (click to expand/collapse)</div>");
+                w.write("<div class='content' id='" + errorId + "'>" + esc(getError(r)) + "</div></td>");
+                w.write("</tr>");
+                idx++;
+            }
+            w.write("</tbody></table>");
+            w.write("</body></html>");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String esc(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private String extractLoginUser(List<ISuite> suites) {
+        for (ISuite suite : suites) {
+            for (ISuiteResult result : suite.getResults().values()) {
+                ITestContext context = result.getTestContext();
+                String login = context.getCurrentXmlTest().getParameter("loginid");
+                if (login != null && !login.trim().isEmpty())
+                    return login;
+            }
+            // Fallback: suite-level parameter
+            String login = suite.getXmlSuite().getParameter("loginid");
+            if (login != null && !login.trim().isEmpty())
+                return login;
+        }
+        return "Unknown";
+    }
+
+
+    private String getLogs(ITestResult r) {
+        // Pull log entries—replace with integration to your Log.java or logging solution
+        // If using Log.java: Log.getTestLogs(r) or similar
+        return "Logs placeholder or integrate with your actual logs";
+    }
+
+    private String getError(ITestResult r) {
+        Throwable t = r.getThrowable();
+        if (t == null) return "No error.";
+        return t.toString() + "<br/>" + esc(t.getMessage());
+    }
+}

@@ -1,0 +1,67 @@
+package Test;
+import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+
+import org.apache.commons.mail.DefaultAuthenticator;
+import org.apache.commons.mail.Email;
+import org.apache.commons.mail.EmailException;
+import org.apache.commons.mail.HtmlEmail;
+import org.apache.commons.mail.SimpleEmail;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.Test;
+
+import com.testing.framework.EmailUtils;
+
+public class TestNGEmailReport {
+
+    @SuppressWarnings("deprecation")
+	@Test
+    public void sampleTest() throws EmailException 
+    {
+        System.setProperty("https.protocols", "TLSv1.2");
+        System.setProperty("mail.smtp.ssl.protocols", "TLSv1.2");
+    	// Replace with your password (or App password)
+      //  String toEmail = "ssmohanty@evawinoptimize.com";
+
+        // Set up the email properties
+//        Properties properties = new Properties();
+//        properties.put("mail.smtp.host", "smtp.gmail.com");
+//        properties.put("mail.smtp.port", "587");
+//        properties.put("mail.smtp.auth", "true");
+//        properties.put("mail.smtp.starttls.enable", "true");
+//        properties.put("mail.smtp.ssl.protocols", "TLSv1.2");  // Force TLS 1.2 protocol
+        HtmlEmail email= new HtmlEmail();
+        email.setHostName("smtp.gmail.com");
+        email.setSmtpPort(587);
+        email.setAuthenticator(new DefaultAuthenticator("ssmohanty@evawinoptimize.com", "jlnu hlym iprx qpsv"));
+        email.setSSLOnConnect(true);
+        email.setFrom("ssmohanty@evawinoptimize.com");
+        email.setSubject("TestEmail");
+        email.setMsg("This is an Email from Selenium");
+        email.addTo("ssmohanty@evawinoptimize.com");
+        email.attach("C:/Users/S S Mohanty/eclipse-workspace/POMTenant1/test-output/emailable-report.html");
+        email.send();
+        
+        
+        
+        System.out.println("Email sent successfully");
+        
+    }
+
+//    @AfterSuite
+//    public void sendTestNGReportEmail() throws Exception {
+//        // Path to the generated TestNG report file
+//       
+//        // Send the email with the TestNG report as attachment
+//        EmailUtils emailUtils=new EmailUtils();
+//        Properties prop=new Properties();
+//        prop.load(new FileInputStream("C:\\Users\\S S Mohanty\\eclipse-workspace\\POMTenant1\\Configuration\\config.properties"));
+//        List<String> attachments=new ArrayList<>();
+//        attachments.add("C:\\Users\\S S Mohanty\\eclipse-workspace\\POMTenant1\\test-output\\emailable-report.html");
+//        emailUtils.sendUsingGmail(prop, "Test Execution", "Email sent from selenium", attachments);
+//       // SendEmail.sendEmailWithAttachment(recipientEmail, subject, body, reportPath);
+//        
+//    }
+}

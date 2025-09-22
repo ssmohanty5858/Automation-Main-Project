@@ -1,0 +1,62 @@
+package Test;
+
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+
+public class DriverManager {
+  private static final ThreadLocal<WebDriver> TL = new ThreadLocal<>();
+  public static WebDriver get() { return TL.get(); }
+
+  public static void start() {
+    // point to the local chromedriver.exe in the same folder as the BAT/JAR
+    System.setProperty("webdriver.chrome.driver", "chromedriver.exe");
+
+    // ---- NEW: set a stable download folder and enable silent downloads ----
+    Path downloadDir = Paths.get(System.getProperty("user.dir"), "downloads");
+    try { Files.createDirectories(downloadDir); } catch (Exception ignored) {}
+
+    Map<String, Object> prefs = new HashMap<>();
+    prefs.put("download.default_directory", downloadDir.toString());
+    prefs.put("download.prompt_for_download", false);
+    prefs.put("download.directory_upgrade", true);
+    prefs.put("safebrowsing.enabled", true);
+    // PDFs should download instead of opening in the built-in viewer
+    prefs.put("plugins.always_open_pdf_externally", true);
+    // allow multiple automatic downloads
+    prefs.put("profile.default_content_setting_values.automatic_downloads", 1);
+
+    ChromeOptions opts = new ChromeOptions();
+    opts.addArguments("--disable-features=FileSystemAPI,FileSystemAccessAPI");
+    // optional but helps keep Chrome download UI out of the way
+    opts.addArguments("--disable-features=DownloadBubble,DownloadBubbleV2");
+    opts.setExperimentalOption("prefs", prefs);         // <-- important
+    opts.addArguments("--remote-allow-origins=*");
+    opts.addArguments("--incognito");
+    opts.addArguments("--window-size=1920,1080");
+    // If you run headless, uncomment:
+    // opts.addArguments("--headless=new");
+
+    TL.set(new ChromeDriver(opts));
+  }
+
+  public static void stop() {
+    WebDriver d = TL.get();
+    if (d != null) {
+      try { d.quit(); } finally { TL.remove(); }
+    }
+  }
+}
+
+

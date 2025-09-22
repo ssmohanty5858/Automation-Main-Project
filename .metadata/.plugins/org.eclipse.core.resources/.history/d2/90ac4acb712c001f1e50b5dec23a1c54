@@ -1,0 +1,101 @@
+package POM;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+public class EditOpportunity 
+{
+	public WebDriver driver;
+	
+	int rdmnumber=(int)(Math.random()*1000);
+	Date date = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat(" MMM dd yyyy");
+	String formattedDate = sdf.format(date);
+	
+	@FindBy(xpath="(//li[@placement='right'])[1]")
+	private WebElement opportunitytab;
+
+	@FindBy(xpath="(//div[@class='hovr-area'])[1]") 
+	private WebElement action;
+	
+	@FindBy(xpath="(//a[contains(text(),'Edit')])[1]")
+	private WebElement edit;
+	
+	@FindBy(xpath="(//input[@autocomplete='off'])[3]")
+	private WebElement lastname;
+	
+	@FindBy(xpath="(//textarea[@autocomplete='off'])")
+	private WebElement note;
+	
+	@FindBy(xpath="//app-eva-dropdown[@formcontrolname='cityId']")
+	private WebElement city;
+	
+	@FindBy(xpath="(//input[@placeholder='Search...'])[1]")
+	private WebElement searchbarcity;
+	
+	@FindBy(xpath="//a[contains(text(),'Ahamadnagar')]")
+	private WebElement ahamadnagar;
+	
+	@FindBy(xpath="//button[@type='submit']")
+	private WebElement update;
+	
+    @FindBy(xpath="(//a[contains(text(),'Update stage')])[1]")
+    private WebElement updatestage;
+    
+    @FindBy(xpath="//app-eva-dropdown[@formcontrolname='opportunityStagesId']")
+    private WebElement stage;
+	
+    @FindBy(xpath="(//input[@placeholder='Search...'])[7]")
+    private WebElement searchbarstage;
+    
+    @FindBy(xpath="//button[@class='close pull-right']")
+    private WebElement closesymbol;
+    
+    @FindBy(xpath="(//a[contains(text(),'Verbal Confirmation')])[2]")
+    private WebElement verbalconfirmation;
+    
+    @FindBy(xpath="//input[@value='Save']")
+    private WebElement save;
+    
+	public EditOpportunity (WebDriver driver)
+	{
+		PageFactory.initElements(driver, this);
+	}
+	
+	public void edit() throws InterruptedException
+	{
+		
+		opportunitytab.click();
+		
+		action.click();
+	
+		edit.click(); 
+		
+		lastname.clear();
+		Thread.sleep(2000);
+		lastname.sendKeys("Edit Test"+rdmnumber+ formattedDate);
+
+		note.clear();
+	
+		note.sendKeys("Test"+rdmnumber+ formattedDate);
+		
+		update.click();
+//		Thread.sleep(2000);
+//		action.click();
+//		Thread.sleep(2000);
+//		action.click();
+//		updatestage.click();
+//		stage.click();
+//		Thread.sleep(2000);	
+//		verbalconfirmation.click();
+//		save.click();
+	}
+	
+	
+	
+	
+}
